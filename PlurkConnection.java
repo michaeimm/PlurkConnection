@@ -1,7 +1,6 @@
 package tw.shounenwind;
 
 import android.graphics.Bitmap;
-import android.graphics.Bitmap.Config;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.media.ExifInterface;
@@ -194,25 +193,24 @@ public class PlurkConnection {
                 BitmapFactory.Options newOpts = new BitmapFactory.Options();
 
                 newOpts.inJustDecodeBounds = false;
-                newOpts.inSampleSize = 1;
                 bt = BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
-                newOpts.inPreferredConfig = Config.RGB_565;
-                int compress = (int) Math.min(Math.floor(52428800 / iBytesAvailable), 100);
+                int compress = (int) Math.min(Math.floor(52428800 / iBytesAvailable)+15, 100);
                 Log.d("jpg size", compress+"");
-                bt.compress(Bitmap.CompressFormat.JPEG, compress, bos);
-
+                if(compress > 100){
+                    compress = 100;
+                }
                 ExifInterface exifInterface = new ExifInterface(imageFile.getPath());
 
                 int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
                 int degree  = 0;
                 switch (orientation) {
-                case ExifInterface.ORIENTATION_ROTATE_90:
+                    case ExifInterface.ORIENTATION_ROTATE_90:
                         degree = 90;
                         break;
-                case ExifInterface.ORIENTATION_ROTATE_180:
+                    case ExifInterface.ORIENTATION_ROTATE_180:
                         degree = 180;
                         break;
-                case ExifInterface.ORIENTATION_ROTATE_270:
+                    case ExifInterface.ORIENTATION_ROTATE_270:
                         degree = 270;
                         break;
                 }
@@ -221,8 +219,8 @@ public class PlurkConnection {
 
                 bt = Bitmap.createBitmap(bt, 0, 0,
                         bt.getWidth(), bt.getHeight(), matrix, true);
-                bos.reset();
-                bt.compress(Bitmap.CompressFormat.JPEG, 100, bos);
+                bt.compress(Bitmap.CompressFormat.JPEG, compress, bos);
+
                 bos.writeTo(dataOS);
 
                 bos.flush();
@@ -240,10 +238,8 @@ public class PlurkConnection {
                 BitmapFactory.Options newOpts = new BitmapFactory.Options();
 
                 newOpts.inJustDecodeBounds = false;
-                // Do not compress
-                //newOpts.inSampleSize = (int) Math.floor(iBytesAvailable/405000);
                 bt = BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
-                int compress = (int) Math.min(Math.floor(52428800 / iBytesAvailable), 100);
+                int compress = (int) Math.min(Math.floor(52428800 / iBytesAvailable)+15, 100);
                 Log.d("png size", compress+"");
                 if(compress > 100){
                     compress = 100;
@@ -328,7 +324,4 @@ public class PlurkConnection {
     public int getTimeout(){
         return timeout;
     }
-
-    
-    
 }
