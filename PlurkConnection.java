@@ -20,10 +20,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -88,15 +90,7 @@ public class PlurkConnection {
      * @throws Exception
      */
     public void startConnect(String uri, HashMap<String, String> map) throws Exception{
-        URL url = new URL((useHttps?HTTPS:HTTP)+PREFIX+uri);
-        OkHttpClient okHttpClient = new OkHttpClient();
-        okHttpClient.setProxy(Proxy.NO_PROXY);
-        okHttpClient.setProtocols(Arrays.asList(Protocol.HTTP_2, Protocol.SPDY_3, Protocol.HTTP_1_1));
-        okHttpClient.setReadTimeout((long) timeout, TimeUnit.MILLISECONDS);
-        okHttpClient.setConnectTimeout((long) timeout, TimeUnit.MILLISECONDS);
-        okHttpClient.setWriteTimeout((long)timeout, TimeUnit.MILLISECONDS);
-        OkUrlFactory factory = new OkUrlFactory(okHttpClient);
-        HttpURLConnection urlConnection = factory.open(url);
+        HttpURLConnection urlConnection = getHttpURLConnection(uri);
         urlConnection.setRequestMethod("POST");
         urlConnection.setUseCaches(false);
 
@@ -157,14 +151,7 @@ public class PlurkConnection {
         final String HYPHENS    = "--";
         final String CRLF       = "\r\n";
         StringBuffer sb;
-        OkHttpClient okHttpClient = new OkHttpClient();
-        okHttpClient.setProxy(Proxy.NO_PROXY);
-        okHttpClient.setProtocols(Arrays.asList(Protocol.HTTP_2, Protocol.SPDY_3, Protocol.HTTP_1_1));
-        okHttpClient.setReadTimeout((long) timeout, TimeUnit.MILLISECONDS);
-        okHttpClient.setConnectTimeout((long) timeout, TimeUnit.MILLISECONDS);
-        okHttpClient.setWriteTimeout((long)timeout, TimeUnit.MILLISECONDS);
-        OkUrlFactory factory = new OkUrlFactory(okHttpClient);
-        HttpURLConnection urlConnection = factory.open(url);
+        HttpURLConnection urlConnection = getHttpURLConnection(uri);
         urlConnection.setDoInput(true);
         urlConnection.setDoOutput(true);
         urlConnection.setRequestMethod("POST");
@@ -323,5 +310,21 @@ public class PlurkConnection {
      */
     public int getTimeout(){
         return timeout;
+    }
+
+    private List<Protocol> protocols(){
+        return Arrays.asList(Protocol.HTTP_2, Protocol.SPDY_3, Protocol.HTTP_1_1);
+    }
+
+    private HttpURLConnection getHttpURLConnection(String uri) throws MalformedURLException{
+        URL url = new URL((useHttps?HTTPS:HTTP)+PREFIX+uri);
+        OkHttpClient okHttpClient = new OkHttpClient();
+        okHttpClient.setProxy(Proxy.NO_PROXY);
+        okHttpClient.setProtocols(protocols());
+        okHttpClient.setReadTimeout((long) timeout, TimeUnit.MILLISECONDS);
+        okHttpClient.setConnectTimeout((long) timeout, TimeUnit.MILLISECONDS);
+        okHttpClient.setWriteTimeout((long)timeout, TimeUnit.MILLISECONDS);
+        OkUrlFactory factory = new OkUrlFactory(okHttpClient);
+        return factory.open(url);
     }
 }
