@@ -64,7 +64,7 @@ public class PlurkConnection {
     }
 
     public PlurkConnection(String APP_KEY, String APP_SECRET, boolean useHttps) {
-        timeout = 7000;
+        timeout = DEFAULT_TIMEOUT;
         this.APP_KEY = APP_KEY;
         this.APP_SECRET = APP_SECRET;
         this.useHttps = useHttps;
