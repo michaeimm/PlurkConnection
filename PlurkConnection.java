@@ -175,17 +175,14 @@ public class PlurkConnection {
         if(imageFile.getName().substring(imageFile.getName().length()-3).toLowerCase(Locale.US).equals("jpg")){
             Bitmap bt;
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            if( iBytesAvailable > 524288) {
+            if( iBytesAvailable > 10485760) {
                 fileInputStream.close();
                 BitmapFactory.Options newOpts = new BitmapFactory.Options();
 
                 newOpts.inJustDecodeBounds = false;
+                newOpts.inSampleSize = (int) Math.floor(iBytesAvailable/10485760); //10MB
                 bt = BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
-                int compress = (int) Math.min(Math.floor(52428800 / iBytesAvailable)+15, 100);
-                Log.d("jpg size", compress+"");
-                if(compress > 100){
-                    compress = 100;
-                }
+
                 ExifInterface exifInterface = new ExifInterface(imageFile.getPath());
 
                 int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
@@ -206,7 +203,7 @@ public class PlurkConnection {
 
                 bt = Bitmap.createBitmap(bt, 0, 0,
                         bt.getWidth(), bt.getHeight(), matrix, true);
-                bt.compress(Bitmap.CompressFormat.JPEG, compress, bos);
+                bt.compress(Bitmap.CompressFormat.JPEG, 80, bos);
 
                 bos.writeTo(dataOS);
 
@@ -220,19 +217,14 @@ public class PlurkConnection {
         }else if(imageFile.getName().substring(imageFile.getName().length()-3).toLowerCase(Locale.US).equals("png")){
             Bitmap bt;
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            if( iBytesAvailable > 524288) {
+            if( iBytesAvailable > 10485760) {
                 fileInputStream.close();
                 BitmapFactory.Options newOpts = new BitmapFactory.Options();
-
+                newOpts.inSampleSize = (int) Math.floor(iBytesAvailable/10485760); //10MB
                 newOpts.inJustDecodeBounds = false;
                 bt = BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
-                int compress = (int) Math.min(Math.floor(52428800 / iBytesAvailable)+15, 100);
-                Log.d("png size", compress+"");
-                if(compress > 100){
-                    compress = 100;
-                }
 
-                bt.compress(Bitmap.CompressFormat.JPEG, compress, bos);
+                bt.compress(Bitmap.CompressFormat.JPEG, 80, bos);
 
                 bos.writeTo(dataOS);
 
