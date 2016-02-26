@@ -38,6 +38,12 @@ import oauth.signpost.http.HttpParameters;
 public class PlurkConnection {
 
     private static final int DEFAULT_TIMEOUT = 7000;
+    private static final String PREFIX = "www.plurk.com/APP/";
+    private static final String HTTP = "http://";
+    private static final String HTTPS = "https://";
+    private static final String BOUNDARY   = "==================================";
+    private static final String HYPHENS    = "--";
+    private static final String CRLF       = "\r\n";
 
     private String APP_SECRET;
     private String APP_KEY;
@@ -47,9 +53,6 @@ public class PlurkConnection {
     private OAuthConsumer consumer;
     private String token;
     private String token_secret;
-    private static String PREFIX = "www.plurk.com/APP/";
-    private static String HTTP = "http://";
-    private static String HTTPS = "https://";
     private boolean useHttps;
     
     public PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
@@ -146,10 +149,7 @@ public class PlurkConnection {
      * @param imageName 圖片名（配合API）
      */
     public void startConnect(String uri, File imageFile, String imageName) throws Exception{
-        URL url = new URL((useHttps?HTTPS:HTTP)+PREFIX+uri);
-        final String BOUNDARY   = "==================================";
-        final String HYPHENS    = "--";
-        final String CRLF       = "\r\n";
+
         StringBuffer sb;
         HttpURLConnection urlConnection = getHttpURLConnection(uri);
         urlConnection.setDoInput(true);
