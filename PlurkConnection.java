@@ -37,13 +37,13 @@ import oauth.signpost.http.HttpParameters;
 
 public class PlurkConnection {
 
-    private static final int DEFAULT_TIMEOUT = 7000;
+    private static final int DEFAULT_TIMEOUT = 10000;
     private static final String PREFIX = "www.plurk.com/APP/";
     private static final String HTTP = "http://";
     private static final String HTTPS = "https://";
-    private static final String BOUNDARY   = "==================================";
-    private static final String HYPHENS    = "--";
-    private static final String CRLF       = "\r\n";
+    private static final String BOUNDARY = "==================================";
+    private static final String HYPHENS = "--";
+    private static final String CRLF = "\r\n";
 
     private String APP_SECRET;
     private String APP_KEY;
@@ -54,7 +54,7 @@ public class PlurkConnection {
     private String token;
     private String token_secret;
     private boolean useHttps;
-    
+
     public PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
         timeout = DEFAULT_TIMEOUT;
         this.token = token;
@@ -77,7 +77,7 @@ public class PlurkConnection {
     /**
      * 清除連線
      */
-    public void flush(){
+    public void flush() {
         response = null;
         statusCode = 0;
         timeout = DEFAULT_TIMEOUT;
@@ -88,18 +88,19 @@ public class PlurkConnection {
 
     /**
      * 呼叫API
+     *
      * @param uri 目標API
      * @param map 參數
      * @throws Exception
      */
-    public void startConnect(String uri, HashMap<String, String> map) throws Exception{
+    public void startConnect(String uri, HashMap<String, String> map) throws Exception {
         HttpURLConnection urlConnection = getHttpURLConnection(uri);
         urlConnection.setRequestMethod("POST");
         urlConnection.setUseCaches(false);
 
         StringBuilder sb = new StringBuilder("");
         HttpParameters hp = new HttpParameters();
-        for(Map.Entry<String, String> entry : map.entrySet()) {
+        for (Map.Entry<String, String> entry : map.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
             hp.put(OAuth.percentEncode(key), OAuth.percentEncode(value));
@@ -112,7 +113,7 @@ public class PlurkConnection {
         }
         consumer.setAdditionalParameters(hp);
         consumer.sign(urlConnection);
-         
+
         String formEncoded = sb.toString();
         OutputStreamWriter outputStreamWriter = null;
         outputStreamWriter = new OutputStreamWriter(urlConnection.getOutputStream(), "UTF-8");
@@ -120,19 +121,19 @@ public class PlurkConnection {
         if (outputStreamWriter != null) {
             outputStreamWriter.close();
         }
-        
+
         BufferedReader reader;
         statusCode = urlConnection.getResponseCode();
-        if(statusCode == HttpURLConnection.HTTP_OK){
+        if (statusCode == HttpURLConnection.HTTP_OK) {
             reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream(), "UTF-8"));
-        }else{
+        } else {
             reader = new BufferedReader(new InputStreamReader(urlConnection.getErrorStream(), "UTF-8"));
         }
-        
+
         String line;
         sb = new StringBuilder();
-        
-        while((line = reader.readLine()) != null) {
+
+        while ((line = reader.readLine()) != null) {
             sb.append(line);
             sb.append("\n");
         }
@@ -144,14 +145,15 @@ public class PlurkConnection {
 
     /**
      * 呼叫API
-     * @param uri 目標API
+     *
+     * @param uri       目標API
      * @param imageFile 圖檔
      * @param imageName 圖片名（配合API）
      */
-    public void startConnect(String uri, File imageFile, String imageName) throws Exception{
+    public void startConnect(String uri, File imageFile, String imageName) throws Exception {
 
         StringBuffer sb;
-        HttpURLConnection urlConnection = getHttpURLConnection(uri);
+        HttpURLConnection urlConnection = getHttpURLConnection(uri, 180000);
         urlConnection.setDoInput(true);
         urlConnection.setDoOutput(true);
         urlConnection.setRequestMethod("POST");
@@ -163,30 +165,30 @@ public class PlurkConnection {
 
         FileInputStream fileInputStream = new FileInputStream(imageFile);
 
-        String strContentDisposition = "Content-Disposition: form-data; name=\""+imageName+"\"; filename=\""+imageName+"\"";
-        String strContentType = "Content-Type: "+fileType;
+        String strContentDisposition = "Content-Disposition: form-data; name=\"" + imageName + "\"; filename=\"" + imageName + "\"";
+        String strContentType = "Content-Type: " + fileType;
         DataOutputStream dataOS = new DataOutputStream(urlConnection.getOutputStream());
-        dataOS.writeBytes(HYPHENS+BOUNDARY+CRLF);
-        dataOS.writeBytes(strContentDisposition+CRLF);
-        dataOS.writeBytes(strContentType+CRLF);
+        dataOS.writeBytes(HYPHENS + BOUNDARY + CRLF);
+        dataOS.writeBytes(strContentDisposition + CRLF);
+        dataOS.writeBytes(strContentType + CRLF);
         dataOS.writeBytes(CRLF);
         int iBytesAvailable = fileInputStream.available();
-        Log.d("Bytes", iBytesAvailable+"");
-        if(imageFile.getName().substring(imageFile.getName().length()-3).toLowerCase(Locale.US).equals("jpg")){
+        Log.d("Bytes", iBytesAvailable + "");
+        if (imageFile.getName().substring(imageFile.getName().length() - 3).toLowerCase(Locale.US).equals("jpg")) {
             Bitmap bt;
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            if( iBytesAvailable > 10485760) {
+            if (iBytesAvailable > 10485760) {
                 fileInputStream.close();
                 BitmapFactory.Options newOpts = new BitmapFactory.Options();
 
                 newOpts.inJustDecodeBounds = false;
-                newOpts.inSampleSize = (int) Math.floor(iBytesAvailable/10485760); //10MB
+                newOpts.inSampleSize = (int) Math.floor(iBytesAvailable / 10485760); //10MB
                 bt = BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
 
                 ExifInterface exifInterface = new ExifInterface(imageFile.getPath());
 
                 int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
-                int degree  = 0;
+                int degree = 0;
                 switch (orientation) {
                     case ExifInterface.ORIENTATION_ROTATE_90:
                         degree = 90;
@@ -210,17 +212,17 @@ public class PlurkConnection {
                 bos.flush();
                 bos.close();
 
-            }else{
+            } else {
                 uploadNoCompress(iBytesAvailable, fileInputStream, dataOS);
                 fileInputStream.close();
             }
-        }else if(imageFile.getName().substring(imageFile.getName().length()-3).toLowerCase(Locale.US).equals("png")){
+        } else if (imageFile.getName().substring(imageFile.getName().length() - 3).toLowerCase(Locale.US).equals("png")) {
             Bitmap bt;
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            if( iBytesAvailable > 10485760) {
+            if (iBytesAvailable > 10485760) {
                 fileInputStream.close();
                 BitmapFactory.Options newOpts = new BitmapFactory.Options();
-                newOpts.inSampleSize = (int) Math.floor(iBytesAvailable/10485760); //10MB
+                newOpts.inSampleSize = (int) Math.floor(iBytesAvailable / 10485760); //10MB
                 newOpts.inJustDecodeBounds = false;
                 bt = BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
 
@@ -231,16 +233,16 @@ public class PlurkConnection {
                 bos.flush();
                 bos.close();
 
-            }else{
+            } else {
                 uploadNoCompress(iBytesAvailable, fileInputStream, dataOS);
                 fileInputStream.close();
             }
-        }else{
+        } else {
             uploadNoCompress(iBytesAvailable, fileInputStream, dataOS);
             fileInputStream.close();
         }
         dataOS.writeBytes(CRLF);
-        dataOS.writeBytes(HYPHENS+BOUNDARY+HYPHENS);
+        dataOS.writeBytes(HYPHENS + BOUNDARY + HYPHENS);
         dataOS.flush();
         dataOS.close();
 
@@ -248,7 +250,7 @@ public class PlurkConnection {
         String line;
         sb = new StringBuffer();
 
-        while((line = reader.readLine()) != null) {
+        while ((line = reader.readLine()) != null) {
             sb.append(line);
             sb.append("\n");
         }
@@ -259,7 +261,7 @@ public class PlurkConnection {
         urlConnection.disconnect();
     }
 
-    private void uploadNoCompress(int iBytesAvailable, FileInputStream fileInputStream, DataOutputStream dataOS) throws IOException{
+    private void uploadNoCompress(int iBytesAvailable, FileInputStream fileInputStream, DataOutputStream dataOS) throws IOException {
         int maxBufferSize = 1024;
         int bufferSize = Math.min(iBytesAvailable, maxBufferSize);
         byte[] byteData = new byte[bufferSize];
@@ -274,48 +276,67 @@ public class PlurkConnection {
 
     /**
      * 取得連線回應
+     *
      * @return API回應
      */
-    public String getResponse(){
+    public String getResponse() {
         return response;
     }
 
     /**
      * 取得連線狀態
+     *
      * @return Status code.
      */
-    public int getStatusCode(){
+    public int getStatusCode() {
         return statusCode;
     }
 
     /**
      * 設定逾時時間
+     *
      * @param t 毫秒
      */
-    public void setTimeout(int t){
+    public void setTimeout(int t) {
         timeout = t;
     }
 
     /**
      * 取得逾時時間
+     *
      * @return 毫秒
      */
-    public int getTimeout(){
+    public int getTimeout() {
         return timeout;
     }
 
-    private List<Protocol> protocols(){
+    private List<Protocol> protocols() {
         return Arrays.asList(Protocol.HTTP_2, Protocol.SPDY_3, Protocol.HTTP_1_1);
     }
 
-    private HttpURLConnection getHttpURLConnection(String uri) throws MalformedURLException{
-        URL url = new URL((useHttps?HTTPS:HTTP)+PREFIX+uri);
+    private HttpURLConnection getHttpURLConnection(String uri) throws MalformedURLException {
+//        URL url = new URL((useHttps?HTTPS:HTTP)+PREFIX+uri);
+//        OkHttpClient okHttpClient = new OkHttpClient();
+//        okHttpClient.setProxy(Proxy.NO_PROXY);
+//        okHttpClient.setProtocols(protocols());
+//        okHttpClient.setReadTimeout((long) timeout, TimeUnit.MILLISECONDS);
+//        okHttpClient.setConnectTimeout((long) timeout, TimeUnit.MILLISECONDS);
+//        okHttpClient.setWriteTimeout((long)timeout, TimeUnit.MILLISECONDS);
+//        OkUrlFactory factory = new OkUrlFactory(okHttpClient);
+//        return factory.open(url);
+        return getHttpURLConnection(uri, this.timeout);
+    }
+
+    private HttpURLConnection getHttpURLConnection(String uri, int timeout) throws MalformedURLException {
+        URL url = new URL((useHttps ? HTTPS : HTTP) + PREFIX + uri);
         OkHttpClient okHttpClient = new OkHttpClient();
         okHttpClient.setProxy(Proxy.NO_PROXY);
         okHttpClient.setProtocols(protocols());
-        okHttpClient.setReadTimeout((long) timeout, TimeUnit.MILLISECONDS);
-        okHttpClient.setConnectTimeout((long) timeout, TimeUnit.MILLISECONDS);
-        okHttpClient.setWriteTimeout((long)timeout, TimeUnit.MILLISECONDS);
+        if (timeout != 0) {
+            okHttpClient.setReadTimeout((long) timeout, TimeUnit.MILLISECONDS);
+            okHttpClient.setConnectTimeout((long) timeout, TimeUnit.MILLISECONDS);
+            okHttpClient.setWriteTimeout((long) timeout, TimeUnit.MILLISECONDS);
+        }
         OkUrlFactory factory = new OkUrlFactory(okHttpClient);
         return factory.open(url);
     }
