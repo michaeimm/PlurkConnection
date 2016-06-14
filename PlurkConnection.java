@@ -54,6 +54,7 @@ public class PlurkConnection {
     private String token;
     private String token_secret;
     private boolean useHttps;
+    private HashMap<String, String> params;
 
     public PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
         timeout = DEFAULT_TIMEOUT;
@@ -64,6 +65,7 @@ public class PlurkConnection {
         this.useHttps = useHttps;
         consumer = new DefaultOAuthConsumer(APP_KEY, APP_SECRET);
         consumer.setTokenWithSecret(token, token_secret);
+        params = new HashMap<String, String>();
     }
 
     public PlurkConnection(String APP_KEY, String APP_SECRET, boolean useHttps) {
@@ -83,6 +85,11 @@ public class PlurkConnection {
         timeout = DEFAULT_TIMEOUT;
         consumer = new DefaultOAuthConsumer(APP_KEY, APP_SECRET);
         consumer.setTokenWithSecret(token, token_secret);
+        params = new HashMap<String, String>();
+    }
+
+    public void addParam(String name, String value) {
+        params.put(name, value);
     }
 
 
@@ -90,17 +97,16 @@ public class PlurkConnection {
      * 呼叫API
      *
      * @param uri 目標API
-     * @param map 參數
      * @throws Exception
      */
-    public void startConnect(String uri, HashMap<String, String> map) throws Exception {
+    public void startConnect(String uri) throws Exception {
         HttpURLConnection urlConnection = getHttpURLConnection(uri);
         urlConnection.setRequestMethod("POST");
         urlConnection.setUseCaches(false);
 
         StringBuilder sb = new StringBuilder("");
         HttpParameters hp = new HttpParameters();
-        for (Map.Entry<String, String> entry : map.entrySet()) {
+        for (Map.Entry<String, String> entry : params.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
             hp.put(OAuth.percentEncode(key), OAuth.percentEncode(value));
@@ -293,21 +299,21 @@ public class PlurkConnection {
     }
 
     /**
-     * 設定逾時時間
-     *
-     * @param t 毫秒
-     */
-    public void setTimeout(int t) {
-        timeout = t;
-    }
-
-    /**
      * 取得逾時時間
      *
      * @return 毫秒
      */
     public int getTimeout() {
         return timeout;
+    }
+
+    /**
+     * 設定逾時時間
+     *
+     * @param t 毫秒
+     */
+    public void setTimeout(int t) {
+        timeout = t;
     }
 
     private List<Protocol> protocols() {
