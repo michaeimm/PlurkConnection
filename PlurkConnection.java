@@ -45,23 +45,15 @@ public class PlurkConnection {
     private static final String HYPHENS = "--";
     private static final String CRLF = "\r\n";
 
-    private String APP_SECRET;
-    private String APP_KEY;
     private String response;
     private int statusCode;
     private int timeout;
     private OAuthConsumer consumer;
-    private String token;
-    private String token_secret;
     private boolean useHttps;
     private HashMap<String, String> params;
 
     public PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
         timeout = DEFAULT_TIMEOUT;
-        this.token = token;
-        this.token_secret = token_secret;
-        this.APP_KEY = APP_KEY;
-        this.APP_SECRET = APP_SECRET;
         this.useHttps = useHttps;
         consumer = new DefaultOAuthConsumer(APP_KEY, APP_SECRET);
         consumer.setTokenWithSecret(token, token_secret);
@@ -70,35 +62,14 @@ public class PlurkConnection {
 
     public PlurkConnection(String APP_KEY, String APP_SECRET, boolean useHttps) {
         timeout = DEFAULT_TIMEOUT;
-        this.APP_KEY = APP_KEY;
-        this.APP_SECRET = APP_SECRET;
         this.useHttps = useHttps;
         consumer = new DefaultOAuthConsumer(APP_KEY, APP_SECRET);
-    }
-
-    /**
-     * 清除連線
-     */
-    public void flush() {
-        response = null;
-        statusCode = 0;
-        timeout = DEFAULT_TIMEOUT;
-        consumer = new DefaultOAuthConsumer(APP_KEY, APP_SECRET);
-        consumer.setTokenWithSecret(token, token_secret);
-        params = new HashMap<String, String>();
     }
 
     public void addParam(String name, String value) {
         params.put(name, value);
     }
-
-
-    /**
-     * 呼叫API
-     *
-     * @param uri 目標API
-     * @throws Exception
-     */
+    
     public void startConnect(String uri) throws Exception {
         HttpURLConnection urlConnection = getHttpURLConnection(uri);
         urlConnection.setRequestMethod("POST");
@@ -124,41 +95,13 @@ public class PlurkConnection {
         OutputStreamWriter outputStreamWriter = null;
         outputStreamWriter = new OutputStreamWriter(urlConnection.getOutputStream(), "UTF-8");
         outputStreamWriter.write(formEncoded);
-        if (outputStreamWriter != null) {
-            outputStreamWriter.close();
-        }
+        outputStreamWriter.close();
 
-        BufferedReader reader;
-        statusCode = urlConnection.getResponseCode();
-        if (statusCode == HttpURLConnection.HTTP_OK) {
-            reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream(), "UTF-8"));
-        } else {
-            reader = new BufferedReader(new InputStreamReader(urlConnection.getErrorStream(), "UTF-8"));
-        }
-
-        String line;
-        sb = new StringBuilder();
-
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
-            sb.append("\n");
-        }
-        reader.close();
-
-
-        response = sb.toString();
+        responseStreamToString(urlConnection);
     }
-
-    /**
-     * 呼叫API
-     *
-     * @param uri       目標API
-     * @param imageFile 圖檔
-     * @param imageName 圖片名（配合API）
-     */
+    
     public void startConnect(String uri, File imageFile, String imageName) throws Exception {
 
-        StringBuffer sb;
         HttpURLConnection urlConnection = getHttpURLConnection(uri, 180000);
         urlConnection.setDoInput(true);
         urlConnection.setDoOutput(true);
@@ -252,19 +195,32 @@ public class PlurkConnection {
         dataOS.flush();
         dataOS.close();
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream(), "UTF-8"));
-        String line;
-        sb = new StringBuffer();
-
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
-            sb.append("\n");
-        }
-        reader.close();
-        response = sb.toString();
-        statusCode = urlConnection.getResponseCode();
+        responseStreamToString(urlConnection);
 
         urlConnection.disconnect();
+    }
+
+    private void responseStreamToString(HttpURLConnection urlConnection) throws Exception {
+        StringBuilder stringBuilder;
+        BufferedReader reader;
+        statusCode = urlConnection.getResponseCode();
+        if (statusCode == HttpURLConnection.HTTP_OK) {
+            reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream(), "UTF-8"));
+        } else {
+            reader = new BufferedReader(new InputStreamReader(urlConnection.getErrorStream(), "UTF-8"));
+        }
+
+        String line;
+        stringBuilder = new StringBuilder();
+
+        while ((line = reader.readLine()) != null) {
+            stringBuilder.append(line);
+            stringBuilder.append("\n");
+        }
+        reader.close();
+
+
+        response = stringBuilder.toString();
     }
 
     private void uploadNoCompress(int iBytesAvailable, FileInputStream fileInputStream, DataOutputStream dataOS) throws IOException {
@@ -279,39 +235,19 @@ public class PlurkConnection {
             iBytesRead = fileInputStream.read(byteData, 0, bufferSize);
         }
     }
-
-    /**
-     * 取得連線回應
-     *
-     * @return API回應
-     */
+    
     public String getResponse() {
         return response;
     }
-
-    /**
-     * 取得連線狀態
-     *
-     * @return Status code.
-     */
+    
     public int getStatusCode() {
         return statusCode;
     }
-
-    /**
-     * 取得逾時時間
-     *
-     * @return 毫秒
-     */
+    
     public int getTimeout() {
         return timeout;
     }
-
-    /**
-     * 設定逾時時間
-     *
-     * @param t 毫秒
-     */
+    
     public void setTimeout(int t) {
         timeout = t;
     }
@@ -321,15 +257,6 @@ public class PlurkConnection {
     }
 
     private HttpURLConnection getHttpURLConnection(String uri) throws MalformedURLException {
-//        URL url = new URL((useHttps?HTTPS:HTTP)+PREFIX+uri);
-//        OkHttpClient okHttpClient = new OkHttpClient();
-//        okHttpClient.setProxy(Proxy.NO_PROXY);
-//        okHttpClient.setProtocols(protocols());
-//        okHttpClient.setReadTimeout((long) timeout, TimeUnit.MILLISECONDS);
-//        okHttpClient.setConnectTimeout((long) timeout, TimeUnit.MILLISECONDS);
-//        okHttpClient.setWriteTimeout((long)timeout, TimeUnit.MILLISECONDS);
-//        OkUrlFactory factory = new OkUrlFactory(okHttpClient);
-//        return factory.open(url);
         return getHttpURLConnection(uri, this.timeout);
     }
 
