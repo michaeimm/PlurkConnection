@@ -52,7 +52,7 @@ public class PlurkConnection {
     private boolean useHttps;
     private HashMap<String, String> params;
 
-    public PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
+    protected PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
         timeout = DEFAULT_TIMEOUT;
         this.useHttps = useHttps;
         consumer = new DefaultOAuthConsumer(APP_KEY, APP_SECRET);
@@ -69,7 +69,7 @@ public class PlurkConnection {
     public void addParam(String name, String value) {
         params.put(name, value);
     }
-    
+
     public void startConnect(String uri) throws Exception {
         HttpURLConnection urlConnection = getHttpURLConnection(uri);
         urlConnection.setRequestMethod("POST");
@@ -92,14 +92,13 @@ public class PlurkConnection {
         consumer.sign(urlConnection);
 
         String formEncoded = sb.toString();
-        OutputStreamWriter outputStreamWriter = null;
-        outputStreamWriter = new OutputStreamWriter(urlConnection.getOutputStream(), "UTF-8");
+        OutputStreamWriter outputStreamWriter = new OutputStreamWriter(urlConnection.getOutputStream(), "UTF-8");
         outputStreamWriter.write(formEncoded);
         outputStreamWriter.close();
 
         responseStreamToString(urlConnection);
     }
-    
+
     public void startConnect(String uri, File imageFile, String imageName) throws Exception {
 
         HttpURLConnection urlConnection = getHttpURLConnection(uri, 180000);
@@ -124,64 +123,17 @@ public class PlurkConnection {
         int iBytesAvailable = fileInputStream.available();
         Log.d("Bytes", iBytesAvailable + "");
         if (imageFile.getName().substring(imageFile.getName().length() - 3).toLowerCase(Locale.US).equals("jpg")) {
-            Bitmap bt;
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
             if (iBytesAvailable > 10485760) {
                 fileInputStream.close();
-                BitmapFactory.Options newOpts = new BitmapFactory.Options();
-
-                newOpts.inJustDecodeBounds = false;
-                newOpts.inSampleSize = (int) Math.floor(iBytesAvailable / 10485760); //10MB
-                bt = BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
-
-                ExifInterface exifInterface = new ExifInterface(imageFile.getPath());
-
-                int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
-                int degree = 0;
-                switch (orientation) {
-                    case ExifInterface.ORIENTATION_ROTATE_90:
-                        degree = 90;
-                        break;
-                    case ExifInterface.ORIENTATION_ROTATE_180:
-                        degree = 180;
-                        break;
-                    case ExifInterface.ORIENTATION_ROTATE_270:
-                        degree = 270;
-                        break;
-                }
-                Matrix matrix = new Matrix();
-                matrix.postRotate(degree);
-
-                bt = Bitmap.createBitmap(bt, 0, 0,
-                        bt.getWidth(), bt.getHeight(), matrix, true);
-                bt.compress(Bitmap.CompressFormat.JPEG, 80, bos);
-
-                bos.writeTo(dataOS);
-
-                bos.flush();
-                bos.close();
-
+                uploadWithCompress(imageFile.getPath(), dataOS, iBytesAvailable, getOrientationMatrix(imageFile.getPath()));
             } else {
                 uploadNoCompress(iBytesAvailable, fileInputStream, dataOS);
                 fileInputStream.close();
             }
         } else if (imageFile.getName().substring(imageFile.getName().length() - 3).toLowerCase(Locale.US).equals("png")) {
-            Bitmap bt;
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
             if (iBytesAvailable > 10485760) {
                 fileInputStream.close();
-                BitmapFactory.Options newOpts = new BitmapFactory.Options();
-                newOpts.inSampleSize = (int) Math.floor(iBytesAvailable / 10485760); //10MB
-                newOpts.inJustDecodeBounds = false;
-                bt = BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
-
-                bt.compress(Bitmap.CompressFormat.JPEG, 80, bos);
-
-                bos.writeTo(dataOS);
-
-                bos.flush();
-                bos.close();
-
+                uploadWithCompress(imageFile.getPath(), dataOS, iBytesAvailable, null);
             } else {
                 uploadNoCompress(iBytesAvailable, fileInputStream, dataOS);
                 fileInputStream.close();
@@ -198,6 +150,61 @@ public class PlurkConnection {
         responseStreamToString(urlConnection);
 
         urlConnection.disconnect();
+    }
+
+    public String getResponse() {
+        return response;
+    }
+
+    public int getStatusCode() {
+        return statusCode;
+    }
+
+    public int getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(int t) {
+        timeout = t;
+    }
+
+    private void uploadWithCompress(String imagePath, DataOutputStream dataOS, long iBytesAvailable, Matrix matrix) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        BitmapFactory.Options newOpts = new BitmapFactory.Options();
+        newOpts.inSampleSize = (int) Math.floor(iBytesAvailable / 10485760); //10MB
+        newOpts.inJustDecodeBounds = false;
+
+        Bitmap bt = BitmapFactory.decodeFile(imagePath, newOpts);
+        if(matrix != null){
+            bt = Bitmap.createBitmap(bt, 0, 0, bt.getWidth(), bt.getHeight(), matrix, true);
+        }
+        bt.compress(Bitmap.CompressFormat.JPEG, 80, bos);
+
+        bos.writeTo(dataOS);
+
+        bos.flush();
+        bos.close();
+    }
+
+    private Matrix getOrientationMatrix(String imagePath) throws IOException {
+        ExifInterface exifInterface = new ExifInterface(imagePath);
+
+        int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+        int degree = 0;
+        switch (orientation) {
+            case ExifInterface.ORIENTATION_ROTATE_90:
+                degree = 90;
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_180:
+                degree = 180;
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_270:
+                degree = 270;
+                break;
+        }
+        Matrix matrix = new Matrix();
+        matrix.postRotate(degree);
+        return matrix;
     }
 
     private void responseStreamToString(HttpURLConnection urlConnection) throws Exception {
@@ -234,22 +241,6 @@ public class PlurkConnection {
             bufferSize = Math.min(iBytesAvailable, maxBufferSize);
             iBytesRead = fileInputStream.read(byteData, 0, bufferSize);
         }
-    }
-    
-    public String getResponse() {
-        return response;
-    }
-    
-    public int getStatusCode() {
-        return statusCode;
-    }
-    
-    public int getTimeout() {
-        return timeout;
-    }
-    
-    public void setTimeout(int t) {
-        timeout = t;
     }
 
     private List<Protocol> protocols() {
