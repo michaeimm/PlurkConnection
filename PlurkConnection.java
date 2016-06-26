@@ -29,6 +29,7 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import se.akerfeldt.okhttp.signpost.OkHttpOAuthConsumer;
+import se.akerfeldt.okhttp.signpost.OkHttpOAuthProvider;
 import se.akerfeldt.okhttp.signpost.SigningInterceptor;
 
 public class PlurkConnection {
@@ -39,6 +40,7 @@ public class PlurkConnection {
     private static final String HTTPS = "https://";
     private static final int COMPRESS_MAX_SIZE = 10485760; //10MB
 
+    private OkHttpOAuthProvider provider;
     private String response;
     private int statusCode;
     private int timeout;
@@ -47,21 +49,25 @@ public class PlurkConnection {
     private HashMap<String, String> params;
 
     protected PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
-        timeout = DEFAULT_TIMEOUT;
-        this.useHttps = useHttps;
-        consumer = new OkHttpOAuthConsumer(APP_KEY, APP_SECRET);
+        this(APP_KEY, APP_SECRET, useHttps);
         consumer.setTokenWithSecret(token, token_secret);
-        params = new HashMap<String, String>();
     }
 
     public PlurkConnection(String APP_KEY, String APP_SECRET, boolean useHttps) {
         timeout = DEFAULT_TIMEOUT;
         this.useHttps = useHttps;
         consumer = new OkHttpOAuthConsumer(APP_KEY, APP_SECRET);
+        provider = new OkHttpOAuthProvider(
+                "https://www.plurk.com/OAuth/request_token",
+                "https://www.plurk.com/OAuth/access_token",
+                "https://www.plurk.com/m/authorize"
+        );
+        params = new HashMap<String, String>();
     }
 
-    public void addParam(String name, String value) {
+    public PlurkConnection addParam(String name, String value) {
         params.put(name, value);
+        return this;
     }
 
     public void startConnect(String uri) throws Exception {
@@ -153,7 +159,6 @@ public class PlurkConnection {
                     )
             );
         }
-
         requestBuilder.post(requestBodyBuilder.build());
         OkHttpClient okHttpClient = okHttpClientBuilder.build();
         Request request = requestBuilder.build();
@@ -181,6 +186,26 @@ public class PlurkConnection {
 
     public void setTimeout(int t) {
         timeout = t;
+    }
+
+    public OkHttpOAuthProvider getProvider() {
+        return provider;
+    }
+
+    public String retrieveRequestToken(String callbackUrl, String... customOAuthParams) throws Exception {
+        return provider.retrieveRequestToken(consumer, callbackUrl, customOAuthParams);
+    }
+
+    public void retrieveAccessToken(String verifier) throws Exception {
+        provider.retrieveAccessToken(consumer, verifier);
+    }
+
+    public String getToken() {
+        return consumer.getToken();
+    }
+
+    public String getTokenSecret() {
+        return consumer.getTokenSecret();
     }
 
     private boolean isNeedCompress(String format, int iBytesAvailable) {
@@ -239,4 +264,5 @@ public class PlurkConnection {
     private List<Protocol> getProtocols() {
         return Arrays.asList(Protocol.HTTP_2, Protocol.SPDY_3, Protocol.HTTP_1_1);
     }
+
 }
