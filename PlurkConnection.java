@@ -54,7 +54,7 @@ public class PlurkConnection {
     private boolean useHttps;
     private HashMap<String, String> params;
 
-    protected PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
+    public PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
         this(APP_KEY, APP_SECRET, useHttps);
         consumer.setTokenWithSecret(token, token_secret);
     }
@@ -68,7 +68,7 @@ public class PlurkConnection {
                 "https://www.plurk.com/OAuth/access_token",
                 "https://www.plurk.com/m/authorize"
         );
-        params = new HashMap<String, String>();
+        params = new HashMap<>();
     }
 
     public PlurkConnection addParam(String name, String value) {
@@ -98,7 +98,7 @@ public class PlurkConnection {
         consumer.sign(urlConnection);
 
         String formEncoded = sb.toString();
-        OutputStreamWriter outputStreamWriter = null;
+        OutputStreamWriter outputStreamWriter;
         outputStreamWriter = new OutputStreamWriter(urlConnection.getOutputStream(), "UTF-8");
         outputStreamWriter.write(formEncoded);
         outputStreamWriter.close();
