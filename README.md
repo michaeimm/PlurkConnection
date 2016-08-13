@@ -1,4 +1,4 @@
-# PlurkConnection
+# Licensed
 
 Copyright 2016 少年ウィンド
 
@@ -13,3 +13,14 @@ Copyright 2016 少年ウィンド
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+
+# Dependencies
+
+Gradle:
+```groovy
+compile group: 'com.squareup.okhttp', name: 'okhttp', version: '2.7.5'
+compile group: 'com.squareup.okhttp', name: 'okhttp-urlconnection', version: '2.7.5'
+compile group: 'com.squareup.okhttp', name: 'okhttp-android-support', version: '2.7.5'
+compile 'oauth.signpost:signpost-core:1.2.1.2'
+```
