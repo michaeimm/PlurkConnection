@@ -4,7 +4,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.media.ExifInterface;
-import android.util.Log;
 import android.webkit.MimeTypeMap;
 
 import com.squareup.okhttp.OkHttpClient;
@@ -38,6 +37,7 @@ import oauth.signpost.http.HttpParameters;
 
 public class PlurkConnection {
 
+    public static final int MAX_IMAGE_SIZE = 10485760; //10MB
     private static final int DEFAULT_TIMEOUT = 10000;
     private static final String PREFIX = "www.plurk.com/APP/";
     private static final String HTTP = "http://";
@@ -97,10 +97,8 @@ public class PlurkConnection {
         consumer.setAdditionalParameters(hp);
         consumer.sign(urlConnection);
 
-        String formEncoded = sb.toString();
-        OutputStreamWriter outputStreamWriter;
-        outputStreamWriter = new OutputStreamWriter(urlConnection.getOutputStream(), "UTF-8");
-        outputStreamWriter.write(formEncoded);
+        OutputStreamWriter outputStreamWriter = new OutputStreamWriter(urlConnection.getOutputStream(), "UTF-8");
+        outputStreamWriter.write(sb.toString());
         outputStreamWriter.close();
 
         responseStreamToString(urlConnection);
@@ -128,73 +126,32 @@ public class PlurkConnection {
         dataOS.writeBytes(strContentType + CRLF);
         dataOS.writeBytes(CRLF);
         int iBytesAvailable = fileInputStream.available();
-        Log.d("Bytes", iBytesAvailable + "");
-        if (imageFile.getName().substring(imageFile.getName().length() - 3).toLowerCase(Locale.US).equals("jpg")) {
-            Bitmap bt;
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            if (iBytesAvailable > 10485760) {
-                fileInputStream.close();
-                BitmapFactory.Options newOpts = new BitmapFactory.Options();
+        String filenameExtension = getFilenameExtension(imageFile.getName());
+        switch (filenameExtension) {
+            case "jpg":
+            case "jpeg":
+                if (iBytesAvailable > MAX_IMAGE_SIZE) {
+                    fileInputStream.close();
+                    Bitmap bt = getBitmapWithCompressOption(imageFile, iBytesAvailable);
+                    Matrix matrix = getPictureOrientationMartix(imageFile);
+                    bt = Bitmap.createBitmap(bt, 0, 0,
+                            bt.getWidth(), bt.getHeight(), matrix, true);
 
-                newOpts.inJustDecodeBounds = false;
-                newOpts.inSampleSize = (int) Math.floor(iBytesAvailable / 10485760); //10MB
-                bt = BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
-
-                ExifInterface exifInterface = new ExifInterface(imageFile.getPath());
-
-                int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
-                int degree = 0;
-                switch (orientation) {
-                    case ExifInterface.ORIENTATION_ROTATE_90:
-                        degree = 90;
-                        break;
-                    case ExifInterface.ORIENTATION_ROTATE_180:
-                        degree = 180;
-                        break;
-                    case ExifInterface.ORIENTATION_ROTATE_270:
-                        degree = 270;
-                        break;
+                    bitmapCompressAndWriteToStream(bt, dataOS);
+                    break;
                 }
-                Matrix matrix = new Matrix();
-                matrix.postRotate(degree);
+            case "png":
+                if (iBytesAvailable > MAX_IMAGE_SIZE) {
+                    fileInputStream.close();
+                    Bitmap bt = getBitmapWithCompressOption(imageFile, iBytesAvailable);
 
-                bt = Bitmap.createBitmap(bt, 0, 0,
-                        bt.getWidth(), bt.getHeight(), matrix, true);
-                bt.compress(Bitmap.CompressFormat.JPEG, 80, bos);
-
-                bos.writeTo(dataOS);
-
-                bos.flush();
-                bos.close();
-
-            } else {
+                    bitmapCompressAndWriteToStream(bt, dataOS);
+                    break;
+                }
+            default:
                 uploadNoCompress(iBytesAvailable, fileInputStream, dataOS);
                 fileInputStream.close();
-            }
-        } else if (imageFile.getName().substring(imageFile.getName().length() - 3).toLowerCase(Locale.US).equals("png")) {
-            Bitmap bt;
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            if (iBytesAvailable > 10485760) {
-                fileInputStream.close();
-                BitmapFactory.Options newOpts = new BitmapFactory.Options();
-                newOpts.inSampleSize = (int) Math.floor(iBytesAvailable / 10485760); //10MB
-                newOpts.inJustDecodeBounds = false;
-                bt = BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
-
-                bt.compress(Bitmap.CompressFormat.JPEG, 80, bos);
-
-                bos.writeTo(dataOS);
-
-                bos.flush();
-                bos.close();
-
-            } else {
-                uploadNoCompress(iBytesAvailable, fileInputStream, dataOS);
-                fileInputStream.close();
-            }
-        } else {
-            uploadNoCompress(iBytesAvailable, fileInputStream, dataOS);
-            fileInputStream.close();
+                break;
         }
         dataOS.writeBytes(CRLF);
         dataOS.writeBytes(HYPHENS + BOUNDARY + HYPHENS);
@@ -204,6 +161,47 @@ public class PlurkConnection {
         responseStreamToString(urlConnection);
 
         urlConnection.disconnect();
+    }
+
+    private String getFilenameExtension(String filename) {
+        return filename.substring(filename.lastIndexOf(".") + 1).toLowerCase(Locale.US);
+    }
+
+    private Matrix getPictureOrientationMartix(File imageFile) throws IOException {
+        ExifInterface exifInterface = new ExifInterface(imageFile.getPath());
+
+        int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+        int degree = 0;
+        switch (orientation) {
+            case ExifInterface.ORIENTATION_ROTATE_90:
+                degree = 90;
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_180:
+                degree = 180;
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_270:
+                degree = 270;
+                break;
+        }
+        Matrix matrix = new Matrix();
+        matrix.postRotate(degree);
+        return matrix;
+    }
+
+    private Bitmap getBitmapWithCompressOption(File imageFile, long fileSize) {
+        BitmapFactory.Options newOpts = new BitmapFactory.Options();
+
+        newOpts.inJustDecodeBounds = false;
+        newOpts.inSampleSize = (int) Math.floor(fileSize / MAX_IMAGE_SIZE);
+        return BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
+    }
+
+    private void bitmapCompressAndWriteToStream(Bitmap bt, DataOutputStream dataOS) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        bt.compress(Bitmap.CompressFormat.JPEG, 80, bos);
+        bos.writeTo(dataOS);
+        bos.flush();
+        bos.close();
     }
 
     private void responseStreamToString(HttpURLConnection urlConnection) throws Exception {
@@ -278,7 +276,7 @@ public class PlurkConnection {
         return consumer.getTokenSecret();
     }
 
-    private List<Protocol> protocols() {
+    private List<Protocol> getProtocols() {
         return Arrays.asList(Protocol.HTTP_2, Protocol.SPDY_3, Protocol.HTTP_1_1);
     }
 
@@ -290,7 +288,7 @@ public class PlurkConnection {
         URL url = new URL((useHttps ? HTTPS : HTTP) + PREFIX + uri);
         OkHttpClient okHttpClient = new OkHttpClient();
         okHttpClient.setProxy(Proxy.NO_PROXY);
-        okHttpClient.setProtocols(protocols());
+        okHttpClient.setProtocols(getProtocols());
         if (timeout != 0) {
             okHttpClient.setReadTimeout((long) timeout, TimeUnit.MILLISECONDS);
             okHttpClient.setConnectTimeout((long) timeout, TimeUnit.MILLISECONDS);
