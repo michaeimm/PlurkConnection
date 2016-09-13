@@ -1,4 +1,4 @@
-package tw.shounenwind;
+package tw.shounenwind.plurkconnection;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -23,21 +23,23 @@ import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.URL;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import oauth.signpost.OAuth;
 import oauth.signpost.OAuthConsumer;
 import oauth.signpost.basic.DefaultOAuthConsumer;
 import oauth.signpost.basic.DefaultOAuthProvider;
+import oauth.signpost.exception.OAuthCommunicationException;
+import oauth.signpost.exception.OAuthExpectationFailedException;
+import oauth.signpost.exception.OAuthMessageSignerException;
+import oauth.signpost.exception.OAuthNotAuthorizedException;
 import oauth.signpost.http.HttpParameters;
 
 public class PlurkConnection {
 
-    public static final int MAX_IMAGE_SIZE = 10485760; //10MB
+    private static final int MAX_IMAGE_SIZE = 10485760; //10MB
     private static final int DEFAULT_TIMEOUT = 10000;
     private static final String PREFIX = "www.plurk.com/APP/";
     private static final String HTTP = "http://";
@@ -45,14 +47,11 @@ public class PlurkConnection {
     private static final String BOUNDARY = "==================================";
     private static final String HYPHENS = "--";
     private static final String CRLF = "\r\n";
-    private DefaultOAuthProvider provider;
 
-    private String response;
-    private int statusCode;
+    private DefaultOAuthProvider provider;
     private int timeout;
     private OAuthConsumer consumer;
     private boolean useHttps;
-    private HashMap<String, String> params;
 
     public PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
         this(APP_KEY, APP_SECRET, useHttps);
@@ -68,43 +67,49 @@ public class PlurkConnection {
                 "https://www.plurk.com/OAuth/access_token",
                 "https://www.plurk.com/m/authorize"
         );
-        params = new HashMap<>();
     }
 
-    public PlurkConnection addParam(String name, String value) {
-        params.put(name, value);
-        return this;
+    public ApiResponse startConnect(String uri) throws Exception {
+        return startConnect(uri, new Param[]{});
     }
 
-    public void startConnect(String uri) throws Exception {
+    public ApiResponse startConnect(String uri, Param param) throws Exception {
+        return startConnect(uri, new Param[]{param});
+    }
+
+    public ApiResponse startConnect(String uri, Param[] params) throws Exception {
         HttpURLConnection urlConnection = getHttpURLConnection(uri);
         urlConnection.setRequestMethod("POST");
         urlConnection.setUseCaches(false);
 
-        StringBuilder sb = new StringBuilder("");
-        HttpParameters hp = new HttpParameters();
-        for (Map.Entry<String, String> entry : params.entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue();
-            hp.put(OAuth.percentEncode(key), OAuth.percentEncode(value));
-            if (sb.length() > 0) {
-                sb.append("&");
+        StringBuilder stringBuilder = new StringBuilder();
+        HttpParameters httpParameters = new HttpParameters();
+        for (Param param : params) {
+            httpParameters.put(OAuth.percentEncode(param.key), OAuth.percentEncode(param.value));
+            if (stringBuilder.length() > 0) {
+                stringBuilder.append("&");
             }
-            sb.append(OAuth.percentEncode(key));
-            sb.append("=");
-            sb.append(OAuth.percentEncode(value));
+            stringBuilder.append(OAuth.percentEncode(param.key));
+            stringBuilder.append("=");
+            stringBuilder.append(OAuth.percentEncode(param.value));
         }
-        consumer.setAdditionalParameters(hp);
+
+        OAuthConsumer consumer = getNewConsumer();
+        consumer.setAdditionalParameters(httpParameters);
         consumer.sign(urlConnection);
 
         OutputStreamWriter outputStreamWriter = new OutputStreamWriter(urlConnection.getOutputStream(), "UTF-8");
-        outputStreamWriter.write(sb.toString());
+        outputStreamWriter.write(stringBuilder.toString());
         outputStreamWriter.close();
 
-        responseStreamToString(urlConnection);
+        ApiResponse result = responseStreamToString(urlConnection);
+
+        urlConnection.disconnect();
+
+        return result;
     }
 
-    public void startConnect(String uri, File imageFile, String imageName) throws Exception {
+    public ApiResponse startConnect(String uri, File imageFile, String imageName) throws Exception {
 
         HttpURLConnection urlConnection = getHttpURLConnection(uri, 180000);
         urlConnection.setDoInput(true);
@@ -114,6 +119,7 @@ public class PlurkConnection {
         urlConnection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + BOUNDARY);
         String fileType = "Content-Type: " + MimeTypeMap.getFileExtensionFromUrl(imageFile.getPath());
 
+        OAuthConsumer consumer = getNewConsumer();
         consumer.sign(urlConnection);
 
         FileInputStream fileInputStream = new FileInputStream(imageFile);
@@ -158,9 +164,17 @@ public class PlurkConnection {
         dataOS.flush();
         dataOS.close();
 
-        responseStreamToString(urlConnection);
+        ApiResponse result = responseStreamToString(urlConnection);
 
         urlConnection.disconnect();
+
+        return result;
+    }
+
+    private OAuthConsumer getNewConsumer() {
+        OAuthConsumer consumer = new DefaultOAuthConsumer(this.consumer.getConsumerKey(), this.consumer.getConsumerSecret());
+        consumer.setTokenWithSecret(this.consumer.getToken(), this.consumer.getTokenSecret());
+        return consumer;
     }
 
     private String getFilenameExtension(String filename) {
@@ -204,10 +218,10 @@ public class PlurkConnection {
         bos.close();
     }
 
-    private void responseStreamToString(HttpURLConnection urlConnection) throws Exception {
+    private ApiResponse responseStreamToString(HttpURLConnection urlConnection) throws Exception {
         StringBuilder stringBuilder;
         BufferedReader reader;
-        statusCode = urlConnection.getResponseCode();
+        int statusCode = urlConnection.getResponseCode();
         if (statusCode == HttpURLConnection.HTTP_OK) {
             reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream(), "UTF-8"));
         } else {
@@ -224,7 +238,9 @@ public class PlurkConnection {
         reader.close();
 
 
-        response = stringBuilder.toString();
+        String response = stringBuilder.toString();
+
+        return new ApiResponse(statusCode, response);
     }
 
     private void uploadNoCompress(int iBytesAvailable, FileInputStream fileInputStream, DataOutputStream dataOS) throws IOException {
@@ -240,31 +256,15 @@ public class PlurkConnection {
         }
     }
 
-    public String getResponse() {
-        return response;
-    }
-
-    public int getStatusCode() {
-        return statusCode;
-    }
-
-    public int getTimeout() {
-        return timeout;
-    }
-
-    public void setTimeout(int t) {
-        timeout = t;
-    }
-
     public DefaultOAuthProvider getProvider() {
         return provider;
     }
 
-    public String retrieveRequestToken(String callbackUrl, String... customOAuthParams) throws Exception {
+    public String retrieveRequestToken(String callbackUrl, String... customOAuthParams) throws OAuthCommunicationException, OAuthExpectationFailedException, OAuthNotAuthorizedException, OAuthMessageSignerException {
         return provider.retrieveRequestToken(consumer, callbackUrl, customOAuthParams);
     }
 
-    public void retrieveAccessToken(String verifier) throws Exception {
+    public void retrieveAccessToken(String verifier) throws OAuthCommunicationException, OAuthExpectationFailedException, OAuthNotAuthorizedException, OAuthMessageSignerException {
         provider.retrieveAccessToken(consumer, verifier);
     }
 
