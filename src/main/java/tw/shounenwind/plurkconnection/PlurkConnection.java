@@ -6,51 +6,46 @@ import android.graphics.Matrix;
 import android.media.ExifInterface;
 import android.webkit.MimeTypeMap;
 
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.OkUrlFactory;
-import com.squareup.okhttp.Protocol;
+import com.google.common.io.Files;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.Proxy;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import oauth.signpost.OAuth;
-import oauth.signpost.OAuthConsumer;
-import oauth.signpost.basic.DefaultOAuthConsumer;
 import oauth.signpost.basic.DefaultOAuthProvider;
 import oauth.signpost.exception.OAuthCommunicationException;
 import oauth.signpost.exception.OAuthExpectationFailedException;
 import oauth.signpost.exception.OAuthMessageSignerException;
 import oauth.signpost.exception.OAuthNotAuthorizedException;
 import oauth.signpost.http.HttpParameters;
+import okhttp3.CacheControl;
+import okhttp3.FormBody;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Protocol;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import se.akerfeldt.okhttp.signpost.OkHttpOAuthConsumer;
+import se.akerfeldt.okhttp.signpost.SigningInterceptor;
 
 public class PlurkConnection {
 
-    private static final int MAX_IMAGE_SIZE = 10485760; //10MB
-    private static final int DEFAULT_TIMEOUT = 10000;
+    private static final int MAX_IMAGE_SIZE = 10 * 1024 * 1024; //10MB
     private static final String PREFIX = "www.plurk.com/APP/";
     private static final String HTTP = "http://";
     private static final String HTTPS = "https://";
-    private static final String BOUNDARY = "==================================";
-    private static final String HYPHENS = "--";
-    private static final String CRLF = "\r\n";
 
     private DefaultOAuthProvider provider;
-    private int timeout;
-    private OAuthConsumer consumer;
+    private OkHttpOAuthConsumer consumer;
     private boolean useHttps;
 
     public PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
@@ -59,9 +54,8 @@ public class PlurkConnection {
     }
 
     public PlurkConnection(String APP_KEY, String APP_SECRET, boolean useHttps) {
-        timeout = DEFAULT_TIMEOUT;
         this.useHttps = useHttps;
-        consumer = new DefaultOAuthConsumer(APP_KEY, APP_SECRET);
+        consumer = new OkHttpOAuthConsumer(APP_KEY, APP_SECRET);
         provider = new DefaultOAuthProvider(
                 "https://www.plurk.com/OAuth/request_token",
                 "https://www.plurk.com/OAuth/access_token",
@@ -78,114 +72,139 @@ public class PlurkConnection {
     }
 
     public ApiResponse startConnect(String uri, Param[] params) throws Exception {
-        HttpURLConnection urlConnection = getHttpURLConnection(uri);
-        urlConnection.setRequestMethod("POST");
-        urlConnection.setUseCaches(false);
 
-        StringBuilder stringBuilder = new StringBuilder();
+        FormBody.Builder formBodyBuilder = new FormBody.Builder();
         HttpParameters httpParameters = new HttpParameters();
+        OkHttpOAuthConsumer consumer = getNewConsumer();
+
         for (Param param : params) {
             httpParameters.put(OAuth.percentEncode(param.key), OAuth.percentEncode(param.value));
-            if (stringBuilder.length() > 0) {
-                stringBuilder.append("&");
-            }
-            stringBuilder.append(OAuth.percentEncode(param.key));
-            stringBuilder.append("=");
-            stringBuilder.append(OAuth.percentEncode(param.value));
+            formBodyBuilder.add(param.key, param.value);
         }
 
-        OAuthConsumer consumer = getNewConsumer();
+        RequestBody requestBody = formBodyBuilder.build();
         consumer.setAdditionalParameters(httpParameters);
-        consumer.sign(urlConnection);
 
-        OutputStreamWriter outputStreamWriter = new OutputStreamWriter(urlConnection.getOutputStream(), "UTF-8");
-        outputStreamWriter.write(stringBuilder.toString());
-        outputStreamWriter.close();
+        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                .protocols(getProtocols())
+                .proxy(Proxy.NO_PROXY)
+                .connectTimeout(8, TimeUnit.SECONDS)
+                .readTimeout(20, TimeUnit.SECONDS)
+                .writeTimeout(20, TimeUnit.SECONDS)
+                .addInterceptor(new SigningInterceptor(consumer)).build();
+        Request request = new Request.Builder()
+                .cacheControl(
+                        new CacheControl.Builder()
+                                .noCache()
+                                .build()
+                ).url((useHttps ? HTTPS : HTTP) + PREFIX + uri)
+                .post(requestBody)
+                .build();
 
-        ApiResponse result = responseStreamToString(urlConnection);
+        Response response = okHttpClient.newCall(
+                (Request)consumer.sign(request).unwrap()
+        ).execute();
+        ApiResponse result = new ApiResponse(response.code(), response.body().string());
 
-        urlConnection.disconnect();
+        response.close();
 
         return result;
     }
 
     public ApiResponse startConnect(String uri, File imageFile, String imageName) throws Exception {
 
-        HttpURLConnection urlConnection = getHttpURLConnection(uri, 180000);
-        urlConnection.setDoInput(true);
-        urlConnection.setDoOutput(true);
-        urlConnection.setRequestMethod("POST");
-        urlConnection.setUseCaches(false);
-        urlConnection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + BOUNDARY);
-        String fileType = "Content-Type: " + MimeTypeMap.getFileExtensionFromUrl(imageFile.getPath());
+        OkHttpOAuthConsumer consumer = getNewConsumer();
 
-        OAuthConsumer consumer = getNewConsumer();
-        consumer.sign(urlConnection);
+        MultipartBody.Builder requestBodyBuilder = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM);
 
         FileInputStream fileInputStream = new FileInputStream(imageFile);
-
-        String strContentDisposition = "Content-Disposition: form-data; name=\"" + imageName + "\"; filename=\"" + imageName + "\"";
-        String strContentType = "Content-Type: " + fileType;
-        DataOutputStream dataOS = new DataOutputStream(urlConnection.getOutputStream());
-        dataOS.writeBytes(HYPHENS + BOUNDARY + CRLF);
-        dataOS.writeBytes(strContentDisposition + CRLF);
-        dataOS.writeBytes(strContentType + CRLF);
-        dataOS.writeBytes(CRLF);
         int iBytesAvailable = fileInputStream.available();
-        String filenameExtension = getFilenameExtension(imageFile.getName());
-        switch (filenameExtension) {
-            case "jpg":
-            case "jpeg":
-                if (iBytesAvailable > MAX_IMAGE_SIZE) {
-                    fileInputStream.close();
-                    Bitmap bt = getBitmapWithCompressOption(imageFile, iBytesAvailable);
-                    Matrix matrix = getPictureOrientationMartix(imageFile);
-                    bt = Bitmap.createBitmap(bt, 0, 0,
-                            bt.getWidth(), bt.getHeight(), matrix, true);
+        fileInputStream.close();
 
-                    bitmapCompressAndWriteToStream(bt, dataOS);
-                    break;
-                }
-            case "png":
-                if (iBytesAvailable > MAX_IMAGE_SIZE) {
-                    fileInputStream.close();
-                    Bitmap bt = getBitmapWithCompressOption(imageFile, iBytesAvailable);
-
-                    bitmapCompressAndWriteToStream(bt, dataOS);
-                    break;
-                }
-            default:
-                uploadNoCompress(iBytesAvailable, fileInputStream, dataOS);
-                fileInputStream.close();
-                break;
+        String format = Files.getFileExtension(imageFile.getName()).toLowerCase(Locale.ENGLISH);
+        if (isNeedCompress(format, iBytesAvailable)) {
+            fileInputStream.close();
+            requestBodyBuilder.addFormDataPart(imageName,
+                    imageName,
+                    RequestBody.create(
+                            MediaType.parse("image/jpeg"),
+                            getCompressByteArray(
+                                    imageFile,
+                                    iBytesAvailable
+                            )
+                    )
+            );
+        } else {
+            String mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format);
+            if (mimeType == null) {
+                throw new Exception("MimeType is null. File name: " + imageFile.getName());
+            }
+            requestBodyBuilder.addFormDataPart(imageName,
+                    imageName,
+                    RequestBody.create(
+                            MediaType.parse(MimeTypeMap.getSingleton().getMimeTypeFromExtension(format)),
+                            imageFile
+                    )
+            );
         }
-        dataOS.writeBytes(CRLF);
-        dataOS.writeBytes(HYPHENS + BOUNDARY + HYPHENS);
-        dataOS.flush();
-        dataOS.close();
 
-        ApiResponse result = responseStreamToString(urlConnection);
+        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                .protocols(getProtocols())
+                .proxy(Proxy.NO_PROXY)
+                .connectTimeout(8, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
+                .writeTimeout(180, TimeUnit.SECONDS)
+                .addInterceptor(new SigningInterceptor(consumer)).build();
+        Request request = new Request.Builder()
+                .cacheControl(
+                        new CacheControl.Builder()
+                                .noCache()
+                                .build()
+                ).url((useHttps ? HTTPS : HTTP) + PREFIX + uri)
+                .post(requestBodyBuilder.build())
+                .build();
 
-        urlConnection.disconnect();
+        Request signedRequest = (Request) consumer.sign(request).unwrap();
+
+        Response response = okHttpClient.newCall(signedRequest).execute();
+        ApiResponse result = new ApiResponse(response.code(), response.body().string());
+
+        response.close();
 
         return result;
     }
 
-    private OAuthConsumer getNewConsumer() {
-        OAuthConsumer consumer = new DefaultOAuthConsumer(this.consumer.getConsumerKey(), this.consumer.getConsumerSecret());
+    private byte[] getCompressByteArray(File imageFile, long iBytesAvailable) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        Bitmap bt = getBitmapWithCompressOption(imageFile, iBytesAvailable);
+        Matrix matrix = getPictureOrientationMatrix(imageFile);
+        bt = Bitmap.createBitmap(bt, 0, 0,
+                bt.getWidth(), bt.getHeight(), matrix, true);
+        bt.compress(Bitmap.CompressFormat.JPEG, 80, bos);
+
+        byte[] result = bos.toByteArray();
+
+        bos.flush();
+        bos.close();
+        return result;
+    }
+
+    private boolean isNeedCompress(String format, int iBytesAvailable) {
+        return (format.equals("jpg") || format.equals("jpeg") || format.equals("png")) && iBytesAvailable > MAX_IMAGE_SIZE;
+    }
+
+    private OkHttpOAuthConsumer getNewConsumer() {
+        OkHttpOAuthConsumer consumer = new OkHttpOAuthConsumer(this.consumer.getConsumerKey(), this.consumer.getConsumerSecret());
         consumer.setTokenWithSecret(this.consumer.getToken(), this.consumer.getTokenSecret());
         return consumer;
     }
 
-    private String getFilenameExtension(String filename) {
-        return filename.substring(filename.lastIndexOf(".") + 1).toLowerCase(Locale.US);
-    }
-
-    private Matrix getPictureOrientationMartix(File imageFile) throws IOException {
+    private Matrix getPictureOrientationMatrix(File imageFile) throws IOException {
         ExifInterface exifInterface = new ExifInterface(imageFile.getPath());
 
         int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
-        int degree = 0;
+        int degree;
         switch (orientation) {
             case ExifInterface.ORIENTATION_ROTATE_90:
                 degree = 90;
@@ -195,6 +214,9 @@ public class PlurkConnection {
                 break;
             case ExifInterface.ORIENTATION_ROTATE_270:
                 degree = 270;
+                break;
+            default:
+                degree = 0;
                 break;
         }
         Matrix matrix = new Matrix();
@@ -208,52 +230,6 @@ public class PlurkConnection {
         newOpts.inJustDecodeBounds = false;
         newOpts.inSampleSize = (int) Math.floor(fileSize / MAX_IMAGE_SIZE);
         return BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
-    }
-
-    private void bitmapCompressAndWriteToStream(Bitmap bt, DataOutputStream dataOS) throws IOException {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        bt.compress(Bitmap.CompressFormat.JPEG, 80, bos);
-        bos.writeTo(dataOS);
-        bos.flush();
-        bos.close();
-    }
-
-    private ApiResponse responseStreamToString(HttpURLConnection urlConnection) throws Exception {
-        StringBuilder stringBuilder;
-        BufferedReader reader;
-        int statusCode = urlConnection.getResponseCode();
-        if (statusCode == HttpURLConnection.HTTP_OK) {
-            reader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream(), "UTF-8"));
-        } else {
-            reader = new BufferedReader(new InputStreamReader(urlConnection.getErrorStream(), "UTF-8"));
-        }
-
-        String line;
-        stringBuilder = new StringBuilder();
-
-        while ((line = reader.readLine()) != null) {
-            stringBuilder.append(line);
-            stringBuilder.append("\n");
-        }
-        reader.close();
-
-
-        String response = stringBuilder.toString();
-
-        return new ApiResponse(statusCode, response);
-    }
-
-    private void uploadNoCompress(int iBytesAvailable, FileInputStream fileInputStream, DataOutputStream dataOS) throws IOException {
-        int maxBufferSize = 1024;
-        int bufferSize = Math.min(iBytesAvailable, maxBufferSize);
-        byte[] byteData = new byte[bufferSize];
-        int iBytesRead = fileInputStream.read(byteData, 0, bufferSize);
-        while (iBytesRead > 0) {
-            dataOS.write(byteData, 0, bufferSize);
-            iBytesAvailable = fileInputStream.available();
-            bufferSize = Math.min(iBytesAvailable, maxBufferSize);
-            iBytesRead = fileInputStream.read(byteData, 0, bufferSize);
-        }
     }
 
     public DefaultOAuthProvider getProvider() {
@@ -278,23 +254,5 @@ public class PlurkConnection {
 
     private List<Protocol> getProtocols() {
         return Arrays.asList(Protocol.HTTP_2, Protocol.SPDY_3, Protocol.HTTP_1_1);
-    }
-
-    private HttpURLConnection getHttpURLConnection(String uri) throws MalformedURLException {
-        return getHttpURLConnection(uri, this.timeout);
-    }
-
-    private HttpURLConnection getHttpURLConnection(String uri, int timeout) throws MalformedURLException {
-        URL url = new URL((useHttps ? HTTPS : HTTP) + PREFIX + uri);
-        OkHttpClient okHttpClient = new OkHttpClient();
-        okHttpClient.setProxy(Proxy.NO_PROXY);
-        okHttpClient.setProtocols(getProtocols());
-        if (timeout != 0) {
-            okHttpClient.setReadTimeout((long) timeout, TimeUnit.MILLISECONDS);
-            okHttpClient.setConnectTimeout((long) timeout, TimeUnit.MILLISECONDS);
-            okHttpClient.setWriteTimeout((long) timeout, TimeUnit.MILLISECONDS);
-        }
-        OkUrlFactory factory = new OkUrlFactory(okHttpClient);
-        return factory.open(url);
     }
 }

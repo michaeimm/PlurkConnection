@@ -1,8 +1,8 @@
 package tw.shounenwind.plurkconnection;
 
 public class Param {
-    public String key;
-    public String value;
+    public final String key;
+    public final String value;
 
     public Param(String key, String value) {
         this.key = key;
