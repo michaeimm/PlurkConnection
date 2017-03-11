@@ -39,28 +39,53 @@ import se.akerfeldt.okhttp.signpost.SigningInterceptor;
 
 public class PlurkConnection {
 
-    private static final int MAX_IMAGE_SIZE = 10 * 1024 * 1024; //10MB
+    private static final int MAX_IMAGE_SIZE = 8 * 1024 * 1024; //8MB
     private static final String PREFIX = "www.plurk.com/APP/";
-    private static final String HTTP = "http://";
     private static final String HTTPS = "https://";
+    private final OkHttpClient normalOkHttpClient;
+    private final OkHttpClient imageUploadOkHttpClient;
+    private String app_key;
+    private String app_secret;
+    private String token;
+    private String token_secret;
 
     private DefaultOAuthProvider provider;
     private OkHttpOAuthConsumer consumer;
-    private boolean useHttps;
 
-    public PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret, boolean useHttps) {
-        this(APP_KEY, APP_SECRET, useHttps);
+    public PlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret) {
+        this(APP_KEY, APP_SECRET);
+        this.token = token;
+        this.token_secret = token_secret;
         consumer.setTokenWithSecret(token, token_secret);
     }
 
-    public PlurkConnection(String APP_KEY, String APP_SECRET, boolean useHttps) {
-        this.useHttps = useHttps;
+    public PlurkConnection(String APP_KEY, String APP_SECRET) {
+        this.app_key = APP_KEY;
+        this.app_secret = APP_SECRET;
         consumer = new OkHttpOAuthConsumer(APP_KEY, APP_SECRET);
         provider = new DefaultOAuthProvider(
                 "https://www.plurk.com/OAuth/request_token",
                 "https://www.plurk.com/OAuth/access_token",
                 "https://www.plurk.com/m/authorize"
         );
+        normalOkHttpClient = Tls12SocketFactory.enableTls12OnPreLollipop(
+                new OkHttpClient.Builder()
+                        .protocols(getProtocols())
+                        .proxy(Proxy.NO_PROXY)
+                        .connectTimeout(8, TimeUnit.SECONDS)
+                        .readTimeout(20, TimeUnit.SECONDS)
+                        .writeTimeout(20, TimeUnit.SECONDS)
+                        .addInterceptor(new SigningInterceptor(consumer))
+        ).build();
+        imageUploadOkHttpClient = Tls12SocketFactory.enableTls12OnPreLollipop(
+                new OkHttpClient.Builder()
+                        .protocols(getProtocols())
+                        .proxy(Proxy.NO_PROXY)
+                        .connectTimeout(10, TimeUnit.SECONDS)
+                        .readTimeout(60, TimeUnit.SECONDS)
+                        .writeTimeout(180, TimeUnit.SECONDS)
+                        .addInterceptor(new SigningInterceptor(consumer))
+        ).build();
     }
 
     public ApiResponse startConnect(String uri) throws Exception {
@@ -72,107 +97,111 @@ public class PlurkConnection {
     }
 
     public ApiResponse startConnect(String uri, Param[] params) throws Exception {
+        Response response = null;
+        try {
+            FormBody.Builder formBodyBuilder = new FormBody.Builder();
+            HttpParameters httpParameters = new HttpParameters();
+            OkHttpOAuthConsumer consumer = getNewConsumer();
 
-        FormBody.Builder formBodyBuilder = new FormBody.Builder();
-        HttpParameters httpParameters = new HttpParameters();
-        OkHttpOAuthConsumer consumer = getNewConsumer();
+            for (Param param : params) {
+                httpParameters.put(OAuth.percentEncode(param.key), OAuth.percentEncode(param.value));
+                formBodyBuilder.add(param.key, param.value);
+            }
 
-        for (Param param : params) {
-            httpParameters.put(OAuth.percentEncode(param.key), OAuth.percentEncode(param.value));
-            formBodyBuilder.add(param.key, param.value);
+            RequestBody requestBody = formBodyBuilder.build();
+            consumer.setAdditionalParameters(httpParameters);
+
+
+            Request request = new Request.Builder()
+                    .cacheControl(
+                            new CacheControl.Builder()
+                                    .noCache()
+                                    .build()
+                    ).url(HTTPS + PREFIX + uri)
+                    .post(requestBody)
+                    .build();
+
+            response = normalOkHttpClient.newCall(
+                    (Request) consumer.sign(request).unwrap()
+            ).execute();
+
+            ApiResponse result = new ApiResponse(response.code(), response.body().string());
+
+            response.close();
+
+            return result;
+        } catch (Exception e) {
+            if (response != null) {
+                response.close();
+            }
+            return new ApiResponse(500, e.toString());
         }
-
-        RequestBody requestBody = formBodyBuilder.build();
-        consumer.setAdditionalParameters(httpParameters);
-
-        OkHttpClient okHttpClient = new OkHttpClient.Builder()
-                .protocols(getProtocols())
-                .proxy(Proxy.NO_PROXY)
-                .connectTimeout(8, TimeUnit.SECONDS)
-                .readTimeout(20, TimeUnit.SECONDS)
-                .writeTimeout(20, TimeUnit.SECONDS)
-                .addInterceptor(new SigningInterceptor(consumer)).build();
-        Request request = new Request.Builder()
-                .cacheControl(
-                        new CacheControl.Builder()
-                                .noCache()
-                                .build()
-                ).url((useHttps ? HTTPS : HTTP) + PREFIX + uri)
-                .post(requestBody)
-                .build();
-
-        Response response = okHttpClient.newCall(
-                (Request)consumer.sign(request).unwrap()
-        ).execute();
-        ApiResponse result = new ApiResponse(response.code(), response.body().string());
-
-        response.close();
-
-        return result;
     }
 
     public ApiResponse startConnect(String uri, File imageFile, String imageName) throws Exception {
+        Response response = null;
+        try {
+            OkHttpOAuthConsumer consumer = getNewConsumer();
 
-        OkHttpOAuthConsumer consumer = getNewConsumer();
+            MultipartBody.Builder requestBodyBuilder = new MultipartBody.Builder()
+                    .setType(MultipartBody.FORM);
 
-        MultipartBody.Builder requestBodyBuilder = new MultipartBody.Builder()
-                .setType(MultipartBody.FORM);
-
-        FileInputStream fileInputStream = new FileInputStream(imageFile);
-        int iBytesAvailable = fileInputStream.available();
-        fileInputStream.close();
-
-        String format = Files.getFileExtension(imageFile.getName()).toLowerCase(Locale.ENGLISH);
-        if (isNeedCompress(format, iBytesAvailable)) {
+            FileInputStream fileInputStream = new FileInputStream(imageFile);
+            int iBytesAvailable = fileInputStream.available();
             fileInputStream.close();
-            requestBodyBuilder.addFormDataPart(imageName,
-                    imageName,
-                    RequestBody.create(
-                            MediaType.parse("image/jpeg"),
-                            getCompressByteArray(
-                                    imageFile,
-                                    iBytesAvailable
-                            )
-                    )
-            );
-        } else {
-            String mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format);
-            if (mimeType == null) {
-                throw new Exception("MimeType is null. File name: " + imageFile.getName());
+
+            String format = Files.getFileExtension(imageFile.getName()).toLowerCase(Locale.ENGLISH);
+            if (isNeedCompress(format, iBytesAvailable)) {
+                fileInputStream.close();
+                requestBodyBuilder.addFormDataPart(imageName,
+                        imageName,
+                        RequestBody.create(
+                                MediaType.parse("image/jpeg"),
+                                getCompressByteArray(
+                                        imageFile,
+                                        iBytesAvailable
+                                )
+                        )
+                );
+            } else {
+                String mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format);
+                if (mimeType == null) {
+                    throw new Exception("MimeType is null. File name: " + imageFile.getName());
+                }
+                requestBodyBuilder.addFormDataPart(imageName,
+                        imageName,
+                        RequestBody.create(
+                                MediaType.parse(MimeTypeMap.getSingleton().getMimeTypeFromExtension(format)),
+                                imageFile
+                        )
+                );
             }
-            requestBodyBuilder.addFormDataPart(imageName,
-                    imageName,
-                    RequestBody.create(
-                            MediaType.parse(MimeTypeMap.getSingleton().getMimeTypeFromExtension(format)),
-                            imageFile
-                    )
-            );
+
+            Request request = new Request.Builder()
+                    .cacheControl(
+                            new CacheControl.Builder()
+                                    .noCache()
+                                    .build()
+                    ).url(HTTPS + PREFIX + uri)
+                    .post(requestBodyBuilder.build())
+                    .build();
+
+            Request signedRequest = (Request) consumer.sign(request).unwrap();
+
+            response = imageUploadOkHttpClient.newCall(signedRequest).execute();
+            ApiResponse result = new ApiResponse(response.code(), response.body().string());
+
+            response.close();
+            return result;
+        } catch (Exception e) {
+            e.printStackTrace();
+            if (response != null) {
+                response.close();
+            }
+            return new ApiResponse(500, e.toString());
+
         }
 
-        OkHttpClient okHttpClient = new OkHttpClient.Builder()
-                .protocols(getProtocols())
-                .proxy(Proxy.NO_PROXY)
-                .connectTimeout(8, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .writeTimeout(180, TimeUnit.SECONDS)
-                .addInterceptor(new SigningInterceptor(consumer)).build();
-        Request request = new Request.Builder()
-                .cacheControl(
-                        new CacheControl.Builder()
-                                .noCache()
-                                .build()
-                ).url((useHttps ? HTTPS : HTTP) + PREFIX + uri)
-                .post(requestBodyBuilder.build())
-                .build();
-
-        Request signedRequest = (Request) consumer.sign(request).unwrap();
-
-        Response response = okHttpClient.newCall(signedRequest).execute();
-        ApiResponse result = new ApiResponse(response.code(), response.body().string());
-
-        response.close();
-
-        return result;
     }
 
     private byte[] getCompressByteArray(File imageFile, long iBytesAvailable) throws IOException {
@@ -195,8 +224,8 @@ public class PlurkConnection {
     }
 
     private OkHttpOAuthConsumer getNewConsumer() {
-        OkHttpOAuthConsumer consumer = new OkHttpOAuthConsumer(this.consumer.getConsumerKey(), this.consumer.getConsumerSecret());
-        consumer.setTokenWithSecret(this.consumer.getToken(), this.consumer.getTokenSecret());
+        OkHttpOAuthConsumer consumer = new OkHttpOAuthConsumer(app_key, app_secret);
+        consumer.setTokenWithSecret(token, token_secret);
         return consumer;
     }
 
@@ -253,6 +282,6 @@ public class PlurkConnection {
     }
 
     private List<Protocol> getProtocols() {
-        return Arrays.asList(Protocol.HTTP_2, Protocol.SPDY_3, Protocol.HTTP_1_1);
+        return Arrays.asList(Protocol.HTTP_2, Protocol.HTTP_1_1);
     }
 }
