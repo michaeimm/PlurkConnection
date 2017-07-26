@@ -9,6 +9,11 @@ public class PlurkConnectionException extends Exception {
         this.apiResponse = response;
     }
 
+    public PlurkConnectionException(ApiResponse response, Exception e) {
+        super(response.statusCode + ": " + response.content, e);
+        this.apiResponse = response;
+    }
+
     public ApiResponse getApiResponse() {
         return apiResponse;
     }

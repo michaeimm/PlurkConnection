@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.media.ExifInterface;
+import android.support.annotation.WorkerThread;
 import android.webkit.MimeTypeMap;
 
 import com.google.common.io.Files;
@@ -96,6 +97,7 @@ public class PlurkConnection {
         return startConnect(uri, new Param[]{param});
     }
 
+    @WorkerThread
     public ApiResponse startConnect(String uri, Param[] params) throws Exception {
         Response response = null;
         try {
@@ -138,7 +140,10 @@ public class PlurkConnection {
         }
     }
 
+    @WorkerThread
     public ApiResponse startConnect(String uri, File imageFile, String imageName) throws Exception {
+        if (!imageFile.exists())
+            throw new IllegalArgumentException("The image file is not exist.");
         Response response = null;
         try {
             OkHttpOAuthConsumer consumer = getNewConsumer();
