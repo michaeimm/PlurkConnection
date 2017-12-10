@@ -11,9 +11,12 @@ class NewThreadRetryExecutor {
     }
 
     public static void run(final Context mContext, final int times, final int delay, final Tasks tasks, final RetryCheck retryCheck) {
+
         new Thread(new Runnable() {
             @Override
             public void run() {
+                if (mContext == null)
+                    return;
                 WeakReference<Context> activity = new WeakReference<>(mContext);
                 for (int retry = 0; retry < times; retry++) {
                     try {

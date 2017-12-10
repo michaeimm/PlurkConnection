@@ -3,9 +3,20 @@ package tw.shounenwind.plurkconnection;
 import android.content.Context;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 
+import tw.shounenwind.plurkconnection.callbacks.ApiJsonElementCallback;
+import tw.shounenwind.plurkconnection.callbacks.ApiNullCallback;
+import tw.shounenwind.plurkconnection.callbacks.ApiStreamCallback;
+import tw.shounenwind.plurkconnection.callbacks.ApiStringCallback;
+import tw.shounenwind.plurkconnection.callbacks.ICallback;
+import tw.shounenwind.plurkconnection.responses.ApiResponseString;
+import tw.shounenwind.plurkconnection.responses.IResponse;
+
 public class BuildablePlurkConnection extends PlurkConnection {
+
+    private static final String TAG = "BPC";
 
     public BuildablePlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret) {
         super(APP_KEY, APP_SECRET, token, token_secret);
@@ -21,7 +32,7 @@ public class BuildablePlurkConnection extends PlurkConnection {
 
     public class Builder {
 
-        private Context mContext;
+        private WeakReference<Context> contextWeakReference;
         private BuildablePlurkConnection mHealingPlurkConnection;
         private String target;
         private Param[] params;
@@ -30,7 +41,7 @@ public class BuildablePlurkConnection extends PlurkConnection {
         private RetryCheck retryCheck;
 
         public Builder(Context mContext, BuildablePlurkConnection healingPlurkConnection) {
-            this.mContext = mContext;
+            contextWeakReference = new WeakReference<>(mContext);
             mHealingPlurkConnection = healingPlurkConnection;
             params = new Param[]{};
             retryTimes = 1;
@@ -56,7 +67,7 @@ public class BuildablePlurkConnection extends PlurkConnection {
             return this;
         }
 
-        public Builder setCallback(APICallback callback) {
+        public Builder setCallback(ICallback callback) {
             this.callback = callback;
             return this;
         }
@@ -68,15 +79,19 @@ public class BuildablePlurkConnection extends PlurkConnection {
 
         public void call() {
 
-            NewThreadRetryExecutor.run(mContext, retryTimes, 1000, new NewThreadRetryExecutor.Tasks() {
+            NewThreadRetryExecutor.run(contextWeakReference.get(), retryTimes, 1000, new NewThreadRetryExecutor.Tasks() {
                         @Override
                         public void mainTask() throws Exception {
-                            ApiResponse response = mHealingPlurkConnection.startConnect(target, params);
-                            if (response.statusCode != HttpURLConnection.HTTP_OK) {
+                            if (callback == null) {
+                                mHealingPlurkConnection.startConnect(target, params)
+                                        .getNoResult();
+                                return;
+                            }
+                            IResponse response = startConnect();
+                            if (!isHttpOk(response)) {
                                 throw new PlurkConnectionException(response);
                             }
-                            if (callback != null)
-                                callback.onSuccess(response);
+                            callback.onSuccess(response);
                         }
 
                         @Override
@@ -97,16 +112,20 @@ public class BuildablePlurkConnection extends PlurkConnection {
 
         public void upload(final File imageFile, final String fileName) {
 
-            NewThreadRetryExecutor.run(mContext, retryTimes, 1000, new NewThreadRetryExecutor.Tasks() {
+            NewThreadRetryExecutor.run(contextWeakReference.get(), retryTimes, 1000, new NewThreadRetryExecutor.Tasks() {
 
                         @Override
                         public void mainTask() throws Exception {
-                            ApiResponse response = mHealingPlurkConnection.startConnect(target, imageFile, fileName);
-                            if (response.statusCode != HttpURLConnection.HTTP_OK) {
+                            if (!(callback instanceof ApiStringCallback)) {
+                                throw new Exception("Callback needs to instanceof ApiStringCallback");
+                            }
+                            ApiResponseString response = mHealingPlurkConnection.startConnect(target, imageFile, fileName)
+                                    .getAsApiResponseString();
+                            if (!isHttpOk(response)) {
                                 throw new PlurkConnectionException(response);
                             }
                             if (callback != null)
-                                callback.onSuccess(response);
+                                ((ApiStringCallback) callback).onSuccess(response);
                         }
 
                         @Override
@@ -124,6 +143,28 @@ public class BuildablePlurkConnection extends PlurkConnection {
                     }, retryCheck
             );
 
+        }
+
+        private boolean isHttpOk(IResponse response) {
+            return response.getStatusCode() == HttpURLConnection.HTTP_OK;
+        }
+
+        private IResponse startConnect() throws Exception {
+            if (callback instanceof ApiStringCallback) {
+                return mHealingPlurkConnection.startConnect(target, params)
+                        .getAsApiResponseString();
+            } else if (callback instanceof ApiStreamCallback) {
+                return mHealingPlurkConnection.startConnect(target, params)
+                        .getAsApiResponseStream();
+            } else if (callback instanceof ApiJsonElementCallback) {
+                return mHealingPlurkConnection.startConnect(target, params)
+                        .getAsApiResponseJsonElement();
+            } else if (callback instanceof ApiNullCallback) {
+                return mHealingPlurkConnection.startConnect(target, params)
+                        .getNoResult();
+            } else {
+                throw new Exception("ApiResponse type can not be handle.");
+            }
         }
     }
 }

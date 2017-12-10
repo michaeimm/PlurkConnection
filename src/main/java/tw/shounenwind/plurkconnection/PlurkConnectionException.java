@@ -1,20 +1,22 @@
 package tw.shounenwind.plurkconnection;
 
+import tw.shounenwind.plurkconnection.responses.IResponse;
+
 public class PlurkConnectionException extends Exception {
 
-    private final ApiResponse apiResponse;
+    private final IResponse apiResponse;
 
-    public PlurkConnectionException(ApiResponse response) {
-        super(response.statusCode + ": " + response.content);
+    public PlurkConnectionException(IResponse response) {
+        super(response.toString());
         this.apiResponse = response;
     }
 
-    public PlurkConnectionException(ApiResponse response, Exception e) {
-        super(response.statusCode + ": " + response.content, e);
+    public PlurkConnectionException(IResponse response, Exception e) {
+        super(response.getStatusCode() + ": " + response.toString(), e);
         this.apiResponse = response;
     }
 
-    public ApiResponse getApiResponse() {
+    public IResponse getApiResponseString() {
         return apiResponse;
     }
 

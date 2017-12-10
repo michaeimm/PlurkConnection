@@ -11,7 +11,6 @@ import com.google.common.io.Files;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Proxy;
 import java.util.Arrays;
@@ -34,13 +33,13 @@ import okhttp3.OkHttpClient;
 import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import okhttp3.Response;
 import se.akerfeldt.okhttp.signpost.OkHttpOAuthConsumer;
 import se.akerfeldt.okhttp.signpost.SigningInterceptor;
+import tw.shounenwind.plurkconnection.responses.ApiResponse;
 
 public class PlurkConnection {
 
-    private static final int MAX_IMAGE_SIZE = 8 * 1024 * 1024; //8MB
+    private static final int MAX_IMAGE_SIZE = 1024;
     private static final String PREFIX = "www.plurk.com/APP/";
     private static final String HTTPS = "https://";
     private final OkHttpClient normalOkHttpClient;
@@ -99,133 +98,117 @@ public class PlurkConnection {
 
     @WorkerThread
     public ApiResponse startConnect(String uri, Param[] params) throws Exception {
-        Response response = null;
-        try {
-            FormBody.Builder formBodyBuilder = new FormBody.Builder();
-            HttpParameters httpParameters = new HttpParameters();
-            OkHttpOAuthConsumer consumer = getNewConsumer();
+        FormBody.Builder formBodyBuilder = new FormBody.Builder();
+        HttpParameters httpParameters = new HttpParameters();
+        OkHttpOAuthConsumer consumer = getNewConsumer();
 
-            for (Param param : params) {
-                httpParameters.put(OAuth.percentEncode(param.key), OAuth.percentEncode(param.value));
-                formBodyBuilder.add(param.key, param.value);
-            }
-
-            RequestBody requestBody = formBodyBuilder.build();
-            consumer.setAdditionalParameters(httpParameters);
-
-
-            Request request = new Request.Builder()
-                    .cacheControl(
-                            new CacheControl.Builder()
-                                    .noCache()
-                                    .build()
-                    ).url(HTTPS + PREFIX + uri)
-                    .post(requestBody)
-                    .build();
-
-            response = normalOkHttpClient.newCall(
-                    (Request) consumer.sign(request).unwrap()
-            ).execute();
-
-            ApiResponse result = new ApiResponse(response.code(), response.body().string());
-
-            response.close();
-
-            return result;
-        } catch (Exception e) {
-            if (response != null) {
-                response.close();
-            }
-            return new ApiResponse(500, e.toString());
+        for (Param param : params) {
+            httpParameters.put(OAuth.percentEncode(param.key), OAuth.percentEncode(param.value));
+            formBodyBuilder.add(param.key, param.value);
         }
+
+        RequestBody requestBody = formBodyBuilder.build();
+        consumer.setAdditionalParameters(httpParameters);
+
+
+        Request request = new Request.Builder()
+                .cacheControl(
+                        new CacheControl.Builder()
+                                .noCache()
+                                .build()
+                ).url(HTTPS + PREFIX + uri)
+                .post(requestBody)
+                .build();
+
+        return new ApiResponse(normalOkHttpClient.newCall(
+                (Request) consumer.sign(request).unwrap()
+        ).execute());
+
     }
 
     @WorkerThread
     public ApiResponse startConnect(String uri, File imageFile, String imageName) throws Exception {
         if (!imageFile.exists())
             throw new IllegalArgumentException("The image file is not exist.");
-        Response response = null;
-        try {
-            OkHttpOAuthConsumer consumer = getNewConsumer();
 
-            MultipartBody.Builder requestBodyBuilder = new MultipartBody.Builder()
-                    .setType(MultipartBody.FORM);
+        OkHttpOAuthConsumer consumer = getNewConsumer();
 
-            FileInputStream fileInputStream = new FileInputStream(imageFile);
-            int iBytesAvailable = fileInputStream.available();
-            fileInputStream.close();
+        MultipartBody.Builder requestBodyBuilder = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM);
 
-            String format = Files.getFileExtension(imageFile.getName()).toLowerCase(Locale.ENGLISH);
-            if (isNeedCompress(format, iBytesAvailable)) {
-                fileInputStream.close();
+        String format = Files.getFileExtension(imageFile.getName()).toLowerCase(Locale.ENGLISH);
+        if (isNeedCompress(format)) {
+            try {
                 requestBodyBuilder.addFormDataPart(imageName,
                         imageName,
                         RequestBody.create(
-                                MediaType.parse("image/jpeg"),
+                                MediaType.parse("image/png"),
                                 getCompressByteArray(
-                                        imageFile,
-                                        iBytesAvailable
+                                        imageFile
                                 )
                         )
                 );
-            } else {
-                String mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format);
-                if (mimeType == null) {
-                    throw new Exception("MimeType is null. File name: " + imageFile.getName());
-                }
-                requestBodyBuilder.addFormDataPart(imageName,
-                        imageName,
-                        RequestBody.create(
-                                MediaType.parse(MimeTypeMap.getSingleton().getMimeTypeFromExtension(format)),
-                                imageFile
-                        )
-                );
+            } catch (OutOfMemoryError e) {
+                System.gc();
+                throw e;
             }
-
-            Request request = new Request.Builder()
-                    .cacheControl(
-                            new CacheControl.Builder()
-                                    .noCache()
-                                    .build()
-                    ).url(HTTPS + PREFIX + uri)
-                    .post(requestBodyBuilder.build())
-                    .build();
-
-            Request signedRequest = (Request) consumer.sign(request).unwrap();
-
-            response = imageUploadOkHttpClient.newCall(signedRequest).execute();
-            ApiResponse result = new ApiResponse(response.code(), response.body().string());
-
-            response.close();
-            return result;
-        } catch (Exception e) {
-            e.printStackTrace();
-            if (response != null) {
-                response.close();
+        } else {
+            String mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format);
+            if (mimeType == null) {
+                throw new Exception("MimeType is null. File name: " + imageFile.getName());
             }
-            return new ApiResponse(500, e.toString());
-
+            MediaType parsedMimeType = MediaType.parse(
+                    MimeTypeMap.getSingleton().getMimeTypeFromExtension(format)
+            );
+            requestBodyBuilder.addFormDataPart(imageName,
+                    imageName,
+                    RequestBody.create(
+                            parsedMimeType,
+                            imageFile
+                    )
+            );
         }
+
+        Request request = new Request.Builder()
+                .cacheControl(
+                        new CacheControl.Builder()
+                                .noCache()
+                                .build()
+                ).url(HTTPS + PREFIX + uri)
+                .post(requestBodyBuilder.build())
+                .build();
+
+        Request signedRequest = (Request) consumer.sign(request).unwrap();
+
+        return new ApiResponse(imageUploadOkHttpClient.newCall(signedRequest).execute());
 
     }
 
-    private byte[] getCompressByteArray(File imageFile, long iBytesAvailable) throws IOException {
+    private byte[] getCompressByteArray(File imageFile) throws Exception {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        Bitmap bt = getBitmapWithCompressOption(imageFile, iBytesAvailable);
+        Bitmap oldBitmap = getBitmapWithCompressOption(imageFile);
         Matrix matrix = getPictureOrientationMatrix(imageFile);
-        bt = Bitmap.createBitmap(bt, 0, 0,
-                bt.getWidth(), bt.getHeight(), matrix, true);
-        bt.compress(Bitmap.CompressFormat.JPEG, 80, bos);
+
+        Bitmap newBitmap = Bitmap.createBitmap(oldBitmap, 0, 0,
+                oldBitmap.getWidth(), oldBitmap.getHeight(), matrix, true);
+
+        if (!oldBitmap.equals(newBitmap)) {
+            oldBitmap.recycle();
+        }
+
+        newBitmap.compress(Bitmap.CompressFormat.PNG, 75, bos);
 
         byte[] result = bos.toByteArray();
 
         bos.flush();
         bos.close();
+        newBitmap.recycle();
+        System.gc();
         return result;
     }
 
-    private boolean isNeedCompress(String format, int iBytesAvailable) {
-        return (format.equals("jpg") || format.equals("jpeg") || format.equals("png")) && iBytesAvailable > MAX_IMAGE_SIZE;
+    private boolean isNeedCompress(String format) {
+        return (format.equals("jpg") || format.equals("jpeg") || format.equals("png"));
     }
 
     private OkHttpOAuthConsumer getNewConsumer() {
@@ -258,12 +241,40 @@ public class PlurkConnection {
         return matrix;
     }
 
-    private Bitmap getBitmapWithCompressOption(File imageFile, long fileSize) {
+    private Bitmap getBitmapWithCompressOption(File imageFile) throws Exception {
         BitmapFactory.Options newOpts = new BitmapFactory.Options();
 
+        newOpts.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
+
+        newOpts.inSampleSize = calculateInSampleSize(newOpts);
+
+        newOpts.inPurgeable = true;
         newOpts.inJustDecodeBounds = false;
-        newOpts.inSampleSize = (int) Math.floor(fileSize / MAX_IMAGE_SIZE);
-        return BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
+        newOpts.inPreferredConfig = Bitmap.Config.RGB_565;
+        return BitmapFactory.decodeFile(imageFile.getAbsolutePath(), newOpts);
+    }
+
+    private int calculateInSampleSize(BitmapFactory.Options options) {
+        // Raw height and width of image
+        final int height = options.outHeight;
+        final int width = options.outWidth;
+
+        int inSampleSize = 1;
+
+        if (height > MAX_IMAGE_SIZE || width > MAX_IMAGE_SIZE) {
+
+            final int halfHeight = height / 2;
+            final int halfWidth = width / 2;
+
+            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
+            // height and width larger than the requested height and width.
+            while ((halfHeight / inSampleSize) >= MAX_IMAGE_SIZE && (halfWidth / inSampleSize) >= MAX_IMAGE_SIZE) {
+                inSampleSize *= 2;
+            }
+        }
+
+        return inSampleSize;
     }
 
     public DefaultOAuthProvider getProvider() {
@@ -289,4 +300,5 @@ public class PlurkConnection {
     private List<Protocol> getProtocols() {
         return Arrays.asList(Protocol.HTTP_2, Protocol.HTTP_1_1);
     }
+
 }
