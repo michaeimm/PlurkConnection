@@ -42,8 +42,8 @@ public class PlurkConnection {
     private static final int MAX_IMAGE_SIZE = 1024;
     private static final String PREFIX = "www.plurk.com/APP/";
     private static final String HTTPS = "https://";
-    private final OkHttpClient normalOkHttpClient;
-    private final OkHttpClient imageUploadOkHttpClient;
+    private OkHttpClient normalOkHttpClient;
+    private OkHttpClient imageUploadOkHttpClient;
     private String app_key;
     private String app_secret;
     private String token;
@@ -68,24 +68,18 @@ public class PlurkConnection {
                 "https://www.plurk.com/OAuth/access_token",
                 "https://www.plurk.com/m/authorize"
         );
-        normalOkHttpClient = Tls12SocketFactory.enableTls12OnPreLollipop(
-                new OkHttpClient.Builder()
-                        .protocols(getProtocols())
-                        .proxy(Proxy.NO_PROXY)
-                        .connectTimeout(8, TimeUnit.SECONDS)
-                        .readTimeout(20, TimeUnit.SECONDS)
-                        .writeTimeout(20, TimeUnit.SECONDS)
-                        .addInterceptor(new SigningInterceptor(consumer))
-        ).build();
-        imageUploadOkHttpClient = Tls12SocketFactory.enableTls12OnPreLollipop(
-                new OkHttpClient.Builder()
-                        .protocols(getProtocols())
-                        .proxy(Proxy.NO_PROXY)
-                        .connectTimeout(10, TimeUnit.SECONDS)
-                        .readTimeout(60, TimeUnit.SECONDS)
-                        .writeTimeout(180, TimeUnit.SECONDS)
-                        .addInterceptor(new SigningInterceptor(consumer))
-        ).build();
+    }
+
+    public void setNormalOkHttpClient(OkHttpClient normalOkHttpClient) {
+        synchronized (PlurkConnection.class) {
+            this.normalOkHttpClient = normalOkHttpClient;
+        }
+    }
+
+    public void setImageUploadOkHttpClient(OkHttpClient imageUploadOkHttpClient) {
+        synchronized (PlurkConnection.class) {
+            this.imageUploadOkHttpClient = imageUploadOkHttpClient;
+        }
     }
 
     public ApiResponse startConnect(String uri) throws Exception {
@@ -96,8 +90,36 @@ public class PlurkConnection {
         return startConnect(uri, new Param[]{param});
     }
 
+    private void checkLinkExist() {
+        synchronized (PlurkConnection.class) {
+            if (normalOkHttpClient == null) {
+                normalOkHttpClient = Tls12SocketFactory.enableTls12OnPreLollipop(
+                        new OkHttpClient.Builder()
+                                .protocols(getProtocols())
+                                .proxy(Proxy.NO_PROXY)
+                                .connectTimeout(8, TimeUnit.SECONDS)
+                                .readTimeout(20, TimeUnit.SECONDS)
+                                .writeTimeout(20, TimeUnit.SECONDS)
+                                .addInterceptor(new SigningInterceptor(consumer))
+                ).build();
+            }
+            if (imageUploadOkHttpClient == null) {
+                imageUploadOkHttpClient = Tls12SocketFactory.enableTls12OnPreLollipop(
+                        new OkHttpClient.Builder()
+                                .protocols(getProtocols())
+                                .proxy(Proxy.NO_PROXY)
+                                .connectTimeout(10, TimeUnit.SECONDS)
+                                .readTimeout(60, TimeUnit.SECONDS)
+                                .writeTimeout(180, TimeUnit.SECONDS)
+                                .addInterceptor(new SigningInterceptor(consumer))
+                ).build();
+            }
+        }
+    }
+
     @WorkerThread
     public ApiResponse startConnect(String uri, Param[] params) throws Exception {
+        checkLinkExist();
         FormBody.Builder formBodyBuilder = new FormBody.Builder();
         HttpParameters httpParameters = new HttpParameters();
         OkHttpOAuthConsumer consumer = getNewConsumer();
@@ -128,6 +150,7 @@ public class PlurkConnection {
 
     @WorkerThread
     public ApiResponse startConnect(String uri, File imageFile, String imageName) throws Exception {
+        checkLinkExist();
         if (!imageFile.exists())
             throw new IllegalArgumentException("The image file is not exist.");
 

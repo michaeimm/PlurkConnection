@@ -1,5 +1,7 @@
 package tw.shounenwind.plurkconnection;
 
+import com.google.common.base.Objects;
+
 public class Param {
     public final String key;
     public final String value;
@@ -22,6 +24,11 @@ public class Param {
     public Param(String key, boolean value) {
         this.key = key;
         this.value = (value) ? "true" : "false";
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(key, value);
     }
 
     @Override

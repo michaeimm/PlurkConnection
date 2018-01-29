@@ -9,11 +9,4 @@ public class ApiStringCallback implements ICallback<ApiResponseString> {
 
     }
 
-    public void onRetry(long retryTimes, long totalTimes) {
-
-    }
-
-    public void onError(Throwable e) {
-
-    }
 }

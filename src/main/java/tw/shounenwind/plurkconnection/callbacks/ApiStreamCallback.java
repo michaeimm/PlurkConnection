@@ -9,11 +9,4 @@ public class ApiStreamCallback implements ICallback<ApiResponseStream> {
 
     }
 
-    public void onRetry(long retryTimes, long totalTimes) {
-
-    }
-
-    public void onError(Throwable e) {
-
-    }
 }
