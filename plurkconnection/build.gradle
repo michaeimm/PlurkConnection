@@ -1,0 +1,37 @@
+apply plugin: 'com.android.library'
+apply plugin: 'com.github.dcendents.android-maven'
+
+group='com.github.michaeimm'
+
+android {
+    compileSdkVersion 27
+    buildToolsVersion '27.0.3'
+
+    defaultConfig {
+        minSdkVersion 14
+        targetSdkVersion 27
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    api fileTree(include: ['*.jar'], dir: 'libs')
+    api 'oauth.signpost:signpost-core:1.2.1.2'
+    api 'se.akerfeldt:okhttp-signpost:1.1.0'
+    api 'com.squareup.okhttp3:okhttp:3.10.0'
+    api 'com.google.guava:guava:24.1-android'
+    api 'com.google.code.gson:gson:2.8.2'
+    api group: 'org.apache.commons', name: 'commons-text', version: "$project.apacheCommonsTextVersion"
+    api "com.android.support:support-annotations:$project.libSupportVersion"
+}
