@@ -13,13 +13,6 @@ android {
         versionCode 1
         versionName "1.0"
     }
-    buildTypes {
-        debug {}
-        release {}
-        staging {
-            matchingFallbacks = ['debug', 'qa', 'release']
-        }
-    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
