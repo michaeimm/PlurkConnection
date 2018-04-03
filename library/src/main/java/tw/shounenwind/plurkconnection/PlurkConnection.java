@@ -181,7 +181,7 @@ public class PlurkConnection {
                 throw new Exception("MimeType is null. File name: " + imageFile.getName());
             }
             MediaType parsedMimeType = MediaType.parse(
-                    MimeTypeMap.getSingleton().getMimeTypeFromExtension(format)
+                    mimeType
             );
             requestBodyBuilder.addFormDataPart(imageName,
                     imageName,
