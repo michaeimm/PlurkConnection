@@ -3,7 +3,7 @@ package tw.shounenwind.plurkconnection;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
-import android.media.ExifInterface;
+import android.support.media.ExifInterface;
 import android.support.annotation.WorkerThread;
 import android.webkit.MimeTypeMap;
 
