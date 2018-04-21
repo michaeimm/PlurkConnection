@@ -1,6 +1,7 @@
 package tw.shounenwind.plurkconnection;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
@@ -119,6 +120,10 @@ public class BuildablePlurkConnection extends PlurkConnection {
         }
 
         public void upload(final File imageFile, final String fileName) {
+            upload(imageFile, fileName, Bitmap.CompressFormat.PNG);
+        }
+
+        public void upload(final File imageFile, final String fileName, Bitmap.CompressFormat compressFormat) {
 
             retryExecutor.run(contextWeakReference.get(), retryTimes, 1000, new NewThreadRetryExecutor.Tasks() {
 
@@ -127,7 +132,7 @@ public class BuildablePlurkConnection extends PlurkConnection {
                             if (!(callback instanceof ApiStringCallback)) {
                                 throw new Exception("Callback needs to instanceof ApiStringCallback");
                             }
-                            ApiResponseString response = mHealingPlurkConnection.startConnect(target, imageFile, fileName)
+                            ApiResponseString response = mHealingPlurkConnection.startConnect(target, imageFile, fileName, compressFormat)
                                     .getAsApiResponseString();
                             if (!isHttpOk(response)) {
                                 throw new PlurkConnectionException(response);

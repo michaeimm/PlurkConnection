@@ -149,7 +149,12 @@ public class PlurkConnection {
     }
 
     @WorkerThread
-    public ApiResponse startConnect(String uri, File imageFile, String imageName) throws Exception {
+    public ApiResponse startConnect(String uri, File imageFile, String imageName) throws Exception{
+        return startConnect(uri, imageFile, imageName, Bitmap.CompressFormat.PNG);
+    }
+
+    @WorkerThread
+    public ApiResponse startConnect(String uri, File imageFile, String imageName, Bitmap.CompressFormat compressFormat) throws Exception {
         checkLinkExist();
         if (!imageFile.exists())
             throw new IllegalArgumentException("The image file is not exist.");
@@ -162,12 +167,19 @@ public class PlurkConnection {
         String format = Files.getFileExtension(imageFile.getName()).toLowerCase(Locale.ENGLISH);
         if (isNeedCompress(format)) {
             try {
+                MediaType mediaType = null;
+                if (compressFormat.equals(Bitmap.CompressFormat.JPEG)){
+                    mediaType = MediaType.parse("image/jpeg");
+                } else if (compressFormat.equals(Bitmap.CompressFormat.PNG)){
+                    mediaType = MediaType.parse("image/png");
+                }
                 requestBodyBuilder.addFormDataPart(imageName,
                         imageName,
                         RequestBody.create(
-                                MediaType.parse("image/png"),
+                                mediaType,
                                 getCompressByteArray(
-                                        imageFile
+                                        imageFile,
+                                        compressFormat
                                 )
                         )
                 );
@@ -207,7 +219,7 @@ public class PlurkConnection {
 
     }
 
-    private byte[] getCompressByteArray(File imageFile) throws Exception {
+    private byte[] getCompressByteArray(File imageFile, Bitmap.CompressFormat compressFormat) throws Exception {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         Bitmap oldBitmap = getBitmapWithCompressOption(imageFile);
         Matrix matrix = getPictureOrientationMatrix(imageFile);
@@ -219,7 +231,7 @@ public class PlurkConnection {
             oldBitmap.recycle();
         }
 
-        newBitmap.compress(Bitmap.CompressFormat.PNG, 75, bos);
+        newBitmap.compress(compressFormat, 75, bos);
 
         byte[] result = bos.toByteArray();
 
