@@ -190,7 +190,13 @@ public class PlurkConnection {
         } else {
             String mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format);
             if (mimeType == null) {
-                throw new Exception("MimeType is null. File name: " + imageFile.getName());
+                if (compressFormat.equals(Bitmap.CompressFormat.JPEG)){
+                    mimeType = "image/jpeg";
+                } else if (compressFormat.equals(Bitmap.CompressFormat.PNG)){
+                    mimeType = "image/png";
+                } else {
+                    throw new Exception("MimeType is null. File name: " + imageFile.getName());
+                }
             }
             MediaType parsedMimeType = MediaType.parse(
                     mimeType
