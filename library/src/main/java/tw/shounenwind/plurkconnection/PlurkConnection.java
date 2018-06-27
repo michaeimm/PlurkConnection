@@ -33,9 +33,9 @@ import okhttp3.OkHttpClient;
 import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import okhttp3.Response;
 import se.akerfeldt.okhttp.signpost.OkHttpOAuthConsumer;
 import se.akerfeldt.okhttp.signpost.SigningInterceptor;
-import tw.shounenwind.plurkconnection.responses.ApiResponse;
 
 public class PlurkConnection {
 
@@ -82,11 +82,11 @@ public class PlurkConnection {
         }
     }
 
-    public ApiResponse startConnect(String uri) throws Exception {
+    public Response startConnect(String uri) throws Exception {
         return startConnect(uri, new Param[]{});
     }
 
-    public ApiResponse startConnect(String uri, Param param) throws Exception {
+    public Response startConnect(String uri, Param param) throws Exception {
         return startConnect(uri, new Param[]{param});
     }
 
@@ -118,7 +118,7 @@ public class PlurkConnection {
     }
 
     @WorkerThread
-    public ApiResponse startConnect(String uri, Param[] params) throws Exception {
+    public Response startConnect(String uri, Param[] params) throws Exception {
         checkLinkExist();
         FormBody.Builder formBodyBuilder = new FormBody.Builder();
         HttpParameters httpParameters = new HttpParameters();
@@ -142,19 +142,19 @@ public class PlurkConnection {
                 .post(requestBody)
                 .build();
 
-        return new ApiResponse(normalOkHttpClient.newCall(
+        return normalOkHttpClient.newCall(
                 (Request) consumer.sign(request).unwrap()
-        ).execute());
+        ).execute();
 
     }
 
     @WorkerThread
-    public ApiResponse startConnect(String uri, File imageFile, String imageName) throws Exception{
+    public Response startConnect(String uri, File imageFile, String imageName) throws Exception{
         return startConnect(uri, imageFile, imageName, Bitmap.CompressFormat.PNG);
     }
 
     @WorkerThread
-    public ApiResponse startConnect(String uri, File imageFile, String imageName, Bitmap.CompressFormat compressFormat) throws Exception {
+    public Response startConnect(String uri, File imageFile, String imageName, Bitmap.CompressFormat compressFormat) throws Exception {
         checkLinkExist();
         if (!imageFile.exists())
             throw new IllegalArgumentException("The image file is not exist.");
@@ -221,7 +221,7 @@ public class PlurkConnection {
 
         Request signedRequest = (Request) consumer.sign(request).unwrap();
 
-        return new ApiResponse(imageUploadOkHttpClient.newCall(signedRequest).execute());
+        return imageUploadOkHttpClient.newCall(signedRequest).execute();
 
     }
 
