@@ -3,7 +3,7 @@ package tw.shounenwind.plurkconnection.responses;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 
 public class ApiResponseJsonElement implements IResponse<JsonElement> {
     public final JsonElement content;
