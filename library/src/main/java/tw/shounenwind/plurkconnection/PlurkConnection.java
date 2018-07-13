@@ -1,17 +1,12 @@
 package tw.shounenwind.plurkconnection;
 
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
-import android.support.media.ExifInterface;
 import android.support.annotation.WorkerThread;
 import android.webkit.MimeTypeMap;
 
 import com.google.common.io.Files;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
 import java.net.Proxy;
 import java.util.Arrays;
 import java.util.List;
@@ -165,50 +160,26 @@ public class PlurkConnection {
                 .setType(MultipartBody.FORM);
 
         String format = Files.getFileExtension(imageFile.getName()).toLowerCase(Locale.ENGLISH);
-        if (isNeedCompress(format)) {
-            try {
-                MediaType mediaType = null;
-                if (compressFormat.equals(Bitmap.CompressFormat.JPEG)){
-                    mediaType = MediaType.parse("image/jpeg");
-                } else if (compressFormat.equals(Bitmap.CompressFormat.PNG)){
-                    mediaType = MediaType.parse("image/png");
-                }
-                requestBodyBuilder.addFormDataPart(imageName,
-                        imageName,
-                        RequestBody.create(
-                                mediaType,
-                                getCompressByteArray(
-                                        imageFile,
-                                        compressFormat
-                                )
-                        )
-                );
-            } catch (OutOfMemoryError e) {
-                System.gc();
-                throw e;
+        String mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format);
+        if (mimeType == null) {
+            if (compressFormat.equals(Bitmap.CompressFormat.JPEG)){
+                mimeType = "image/jpeg";
+            } else if (compressFormat.equals(Bitmap.CompressFormat.PNG)){
+                mimeType = "image/png";
+            } else {
+                throw new Exception("MimeType is null. File name: " + imageFile.getName());
             }
-        } else {
-            String mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format);
-            if (mimeType == null) {
-                if (compressFormat.equals(Bitmap.CompressFormat.JPEG)){
-                    mimeType = "image/jpeg";
-                } else if (compressFormat.equals(Bitmap.CompressFormat.PNG)){
-                    mimeType = "image/png";
-                } else {
-                    throw new Exception("MimeType is null. File name: " + imageFile.getName());
-                }
-            }
-            MediaType parsedMimeType = MediaType.parse(
-                    mimeType
-            );
-            requestBodyBuilder.addFormDataPart(imageName,
-                    imageName,
-                    RequestBody.create(
-                            parsedMimeType,
-                            imageFile
-                    )
-            );
         }
+        MediaType parsedMimeType = MediaType.parse(
+                mimeType
+        );
+        requestBodyBuilder.addFormDataPart(imageName,
+                imageName,
+                RequestBody.create(
+                        parsedMimeType,
+                        imageFile
+                )
+        );
 
         Request request = new Request.Builder()
                 .cacheControl(
@@ -225,97 +196,10 @@ public class PlurkConnection {
 
     }
 
-    private byte[] getCompressByteArray(File imageFile, Bitmap.CompressFormat compressFormat) throws Exception {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        Bitmap oldBitmap = getBitmapWithCompressOption(imageFile);
-        Matrix matrix = getPictureOrientationMatrix(imageFile);
-
-        Bitmap newBitmap = Bitmap.createBitmap(oldBitmap, 0, 0,
-                oldBitmap.getWidth(), oldBitmap.getHeight(), matrix, true);
-
-        if (!oldBitmap.equals(newBitmap)) {
-            oldBitmap.recycle();
-        }
-
-        newBitmap.compress(compressFormat, 75, bos);
-
-        byte[] result = bos.toByteArray();
-
-        bos.flush();
-        bos.close();
-        newBitmap.recycle();
-        System.gc();
-        return result;
-    }
-
-    private boolean isNeedCompress(String format) {
-        return (format.equals("jpg") || format.equals("jpeg") || format.equals("png"));
-    }
-
     private OkHttpOAuthConsumer getNewConsumer() {
         OkHttpOAuthConsumer consumer = new OkHttpOAuthConsumer(app_key, app_secret);
         consumer.setTokenWithSecret(token, token_secret);
         return consumer;
-    }
-
-    private Matrix getPictureOrientationMatrix(File imageFile) throws IOException {
-        ExifInterface exifInterface = new ExifInterface(imageFile.getPath());
-
-        int orientation = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
-        int degree;
-        switch (orientation) {
-            case ExifInterface.ORIENTATION_ROTATE_90:
-                degree = 90;
-                break;
-            case ExifInterface.ORIENTATION_ROTATE_180:
-                degree = 180;
-                break;
-            case ExifInterface.ORIENTATION_ROTATE_270:
-                degree = 270;
-                break;
-            default:
-                degree = 0;
-                break;
-        }
-        Matrix matrix = new Matrix();
-        matrix.postRotate(degree);
-        return matrix;
-    }
-
-    private Bitmap getBitmapWithCompressOption(File imageFile) throws Exception {
-        BitmapFactory.Options newOpts = new BitmapFactory.Options();
-
-        newOpts.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(imageFile.getPath(), newOpts);
-
-        newOpts.inSampleSize = calculateInSampleSize(newOpts);
-
-        newOpts.inPurgeable = true;
-        newOpts.inJustDecodeBounds = false;
-        newOpts.inPreferredConfig = Bitmap.Config.RGB_565;
-        return BitmapFactory.decodeFile(imageFile.getAbsolutePath(), newOpts);
-    }
-
-    private int calculateInSampleSize(BitmapFactory.Options options) {
-        // Raw height and width of image
-        final int height = options.outHeight;
-        final int width = options.outWidth;
-
-        int inSampleSize = 1;
-
-        if (height > MAX_IMAGE_SIZE || width > MAX_IMAGE_SIZE) {
-
-            final int halfHeight = height / 2;
-            final int halfWidth = width / 2;
-
-            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
-            // height and width larger than the requested height and width.
-            while ((halfHeight / inSampleSize) >= MAX_IMAGE_SIZE && (halfWidth / inSampleSize) >= MAX_IMAGE_SIZE) {
-                inSampleSize *= 2;
-            }
-        }
-
-        return inSampleSize;
     }
 
     public DefaultOAuthProvider getProvider() {
