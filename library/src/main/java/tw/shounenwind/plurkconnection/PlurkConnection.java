@@ -1,6 +1,5 @@
 package tw.shounenwind.plurkconnection;
 
-import android.graphics.Bitmap;
 import android.support.annotation.WorkerThread;
 import android.webkit.MimeTypeMap;
 
@@ -144,12 +143,7 @@ public class PlurkConnection {
     }
 
     @WorkerThread
-    public Response startConnect(String uri, File imageFile, String imageName) throws Exception{
-        return startConnect(uri, imageFile, imageName, Bitmap.CompressFormat.PNG);
-    }
-
-    @WorkerThread
-    public Response startConnect(String uri, File imageFile, String imageName, Bitmap.CompressFormat compressFormat) throws Exception {
+    public Response startConnect(String uri, File imageFile, String imageName) throws Exception {
         checkLinkExist();
         if (!imageFile.exists())
             throw new IllegalArgumentException("The image file is not exist.");
@@ -162,13 +156,7 @@ public class PlurkConnection {
         String format = Files.getFileExtension(imageFile.getName()).toLowerCase(Locale.ENGLISH);
         String mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format);
         if (mimeType == null) {
-            if (compressFormat.equals(Bitmap.CompressFormat.JPEG)){
-                mimeType = "image/jpeg";
-            } else if (compressFormat.equals(Bitmap.CompressFormat.PNG)){
-                mimeType = "image/png";
-            } else {
-                throw new Exception("MimeType is null. File name: " + imageFile.getName());
-            }
+            throw new Exception("MimeType is null. File name: " + imageFile.getName());
         }
         MediaType parsedMimeType = MediaType.parse(
                 mimeType
