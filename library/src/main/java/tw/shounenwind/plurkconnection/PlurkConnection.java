@@ -33,7 +33,6 @@ import se.akerfeldt.okhttp.signpost.SigningInterceptor;
 
 public class PlurkConnection {
 
-    private static final int MAX_IMAGE_SIZE = 1024;
     private static final String PREFIX = "www.plurk.com/APP/";
     private static final String HTTPS = "https://";
     private OkHttpClient normalOkHttpClient;
