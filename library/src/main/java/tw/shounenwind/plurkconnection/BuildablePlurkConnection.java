@@ -89,13 +89,13 @@ public class BuildablePlurkConnection extends PlurkConnection {
                 }
 
                 @Override
-                public void onRetry(Exception e, int retryTimes, int totalTimes) {
+                public void onRetry(Throwable e, int retryTimes, int totalTimes) {
                     if (callback != null)
                         callback.onRetry(e, retryTimes, totalTimes, new ErrorAction(this));
                 }
 
                 @Override
-                public void onError(Exception e) {
+                public void onError(Throwable e) {
                     if (callback != null)
                         callback.onError(e);
                 }
@@ -143,7 +143,7 @@ public class BuildablePlurkConnection extends PlurkConnection {
             tasks.retry();
         }
 
-        public final void error(Exception e) {
+        public final void error(Throwable e) {
             tasks.error(e);
         }
     }

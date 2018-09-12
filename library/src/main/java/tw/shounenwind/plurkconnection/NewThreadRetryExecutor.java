@@ -59,11 +59,11 @@ public class NewThreadRetryExecutor {
     public abstract class Tasks {
         abstract void mainTask() throws Exception;
 
-        public void onRetry(Exception e, int retryTimes, int totalTimes) {
+        public void onRetry(Throwable e, int retryTimes, int totalTimes) {
 
         }
 
-        public void onError(Exception e) {
+        public void onError(Throwable e) {
 
         }
 
@@ -76,7 +76,7 @@ public class NewThreadRetryExecutor {
             run(wrContext.get());
         }
 
-        public final void error(Exception e) {
+        public final void error(Throwable e) {
             tasks.onError(e);
         }
     }
