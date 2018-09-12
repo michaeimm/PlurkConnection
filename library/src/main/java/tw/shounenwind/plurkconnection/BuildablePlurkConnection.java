@@ -4,16 +4,12 @@ import android.content.Context;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
-import java.net.HttpURLConnection;
 import java.util.concurrent.ExecutorService;
 
-import tw.shounenwind.plurkconnection.callbacks.ApiJsonElementCallback;
 import tw.shounenwind.plurkconnection.callbacks.ApiNullCallback;
-import tw.shounenwind.plurkconnection.callbacks.ApiStreamCallback;
 import tw.shounenwind.plurkconnection.callbacks.ApiStringCallback;
-import tw.shounenwind.plurkconnection.callbacks.ICallback;
-import tw.shounenwind.plurkconnection.responses.ApiResponseString;
-import tw.shounenwind.plurkconnection.responses.IResponse;
+import tw.shounenwind.plurkconnection.callbacks.BasePlurkCallback;
+import tw.shounenwind.plurkconnection.responses.ApiResponseNull;
 
 public class BuildablePlurkConnection extends PlurkConnection {
 
@@ -44,7 +40,7 @@ public class BuildablePlurkConnection extends PlurkConnection {
         private BuildablePlurkConnection mHealingPlurkConnection;
         private String target;
         private Param[] params;
-        private ICallback callback;
+        private BasePlurkCallback callback;
         private int retryTimes;
         private RetryCheck retryCheck;
 
@@ -75,7 +71,7 @@ public class BuildablePlurkConnection extends PlurkConnection {
             return this;
         }
 
-        public Builder setCallback(ICallback callback) {
+        public Builder setCallback(BasePlurkCallback callback) {
             this.callback = callback;
             return this;
         }
@@ -91,15 +87,14 @@ public class BuildablePlurkConnection extends PlurkConnection {
                         @Override
                         public void mainTask() throws Exception {
                             if (callback == null) {
-                                mHealingPlurkConnection.startConnect(target, params)
-                                        .getNoResult();
-                                return;
+                                callback = new ApiNullCallback() {
+                                    @Override
+                                    public void onSuccess(ApiResponseNull parsedResponse) throws Exception {
+
+                                    }
+                                };
                             }
-                            IResponse response = startConnect();
-                            if (!isHttpOk(response)) {
-                                throw new PlurkConnectionException(response);
-                            }
-                            callback.onSuccess(response);
+                            callback.runResult(mHealingPlurkConnection.startConnect(target, params));
                         }
 
                         @Override
@@ -127,13 +122,7 @@ public class BuildablePlurkConnection extends PlurkConnection {
                             if (!(callback instanceof ApiStringCallback)) {
                                 throw new Exception("Callback needs to instanceof ApiStringCallback");
                             }
-                            ApiResponseString response = mHealingPlurkConnection.startConnect(target, imageFile, fileName)
-                                    .getAsApiResponseString();
-                            if (!isHttpOk(response)) {
-                                throw new PlurkConnectionException(response);
-                            }
-                            if (callback != null)
-                                ((ApiStringCallback) callback).onSuccess(response);
+                            callback.runResult(mHealingPlurkConnection.startConnect(target, imageFile, fileName));
                         }
 
                         @Override
@@ -151,28 +140,6 @@ public class BuildablePlurkConnection extends PlurkConnection {
                     }, retryCheck
             );
 
-        }
-
-        private boolean isHttpOk(IResponse response) {
-            return response.getStatusCode() == HttpURLConnection.HTTP_OK;
-        }
-
-        private IResponse startConnect() throws Exception {
-            if (callback instanceof ApiStringCallback) {
-                return mHealingPlurkConnection.startConnect(target, params)
-                        .getAsApiResponseString();
-            } else if (callback instanceof ApiStreamCallback) {
-                return mHealingPlurkConnection.startConnect(target, params)
-                        .getAsApiResponseStream();
-            } else if (callback instanceof ApiJsonElementCallback) {
-                return mHealingPlurkConnection.startConnect(target, params)
-                        .getAsApiResponseJsonElement();
-            } else if (callback instanceof ApiNullCallback) {
-                return mHealingPlurkConnection.startConnect(target, params)
-                        .getNoResult();
-            } else {
-                throw new Exception("ApiResponse type can not be handle.");
-            }
         }
     }
 }
