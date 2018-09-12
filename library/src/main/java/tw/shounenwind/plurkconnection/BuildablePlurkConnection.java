@@ -14,20 +14,20 @@ import tw.shounenwind.plurkconnection.responses.ApiResponseNull;
 public class BuildablePlurkConnection extends PlurkConnection {
 
     private static final String TAG = "BPC";
-    private final NewThreadRetryExecutor retryExecutor;
+    private ExecutorService threadPool;
+
 
     public BuildablePlurkConnection(String APP_KEY, String APP_SECRET, String token, String token_secret) {
         super(APP_KEY, APP_SECRET, token, token_secret);
-        retryExecutor = new NewThreadRetryExecutor();
+
     }
 
     public BuildablePlurkConnection(String APP_KEY, String APP_SECRET) {
         super(APP_KEY, APP_SECRET);
-        retryExecutor = new NewThreadRetryExecutor();
     }
 
     public void setThreadPool(ExecutorService threadPool) {
-        retryExecutor.setThreadPool(threadPool);
+        this.threadPool = threadPool;
     }
 
     public Builder builder(Context mContext) {
@@ -36,6 +36,7 @@ public class BuildablePlurkConnection extends PlurkConnection {
 
     public class Builder {
 
+        private final NewThreadRetryExecutor retryExecutor;
         private WeakReference<Context> contextWeakReference;
         private BuildablePlurkConnection mHealingPlurkConnection;
         private String target;
@@ -46,6 +47,10 @@ public class BuildablePlurkConnection extends PlurkConnection {
             contextWeakReference = new WeakReference<>(mContext);
             mHealingPlurkConnection = healingPlurkConnection;
             params = new Param[]{};
+            retryExecutor = new NewThreadRetryExecutor();
+            if (threadPool != null) {
+                retryExecutor.setThreadPool(threadPool);
+            }
         }
 
         public Builder setRetryTimes(int retryTimes) {
@@ -74,6 +79,7 @@ public class BuildablePlurkConnection extends PlurkConnection {
         }
 
         public void call() {
+
             retryExecutor.setTasks(retryExecutor.new Tasks() {
                 @Override
                 public void mainTask() throws Exception {
