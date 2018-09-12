@@ -60,7 +60,7 @@ public class NewThreadRetryExecutor {
         abstract void mainTask() throws Exception;
 
         public void onRetry(Throwable e, int retryTimes, int totalTimes) {
-
+            retry();
         }
 
         public void onError(Throwable e) {
