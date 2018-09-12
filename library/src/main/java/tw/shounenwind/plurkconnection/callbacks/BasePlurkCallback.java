@@ -19,7 +19,7 @@ public abstract class BasePlurkCallback<T extends IResponse> {
 
     }
 
-    public void onError(Exception e) {
+    public void onError(Throwable e) {
 
     }
 
