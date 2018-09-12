@@ -1,6 +1,7 @@
 package tw.shounenwind.plurkconnection;
 
 import android.content.Context;
+import android.util.Log;
 
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ExecutorService;
@@ -39,6 +40,7 @@ public class NewThreadRetryExecutor {
                 tasks.mainTask();
             } catch (final Exception e) {
                 currentRetryTimes++;
+                Log.d("retry check", currentRetryTimes + "/" + totalRetryTimes);
                 if (currentRetryTimes >= totalRetryTimes) {
                     final Context mActivity = wrContext.get();
                     if (mActivity == null) {
