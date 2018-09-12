@@ -4,12 +4,12 @@ apply plugin: 'com.github.dcendents.android-maven'
 group='com.github.michaeimm'
 
 android {
-    compileSdkVersion 27
-    buildToolsVersion '27.0.3'
+    compileSdkVersion 28
+    buildToolsVersion '28.0.2'
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 27
+        targetSdkVersion 28
         versionCode 1
         versionName "1.0"
     }
@@ -23,9 +23,9 @@ dependencies {
     api fileTree(include: ['*.jar'], dir: 'libs')
     api 'oauth.signpost:signpost-core:1.2.1.2'
     api 'se.akerfeldt:okhttp-signpost:1.1.0'
-    implementation 'com.squareup.okhttp3:okhttp:3.10.0'
+    implementation 'com.squareup.okhttp3:okhttp:3.11.0'
     implementation 'com.google.guava:guava:24.1-android'
-    implementation 'com.google.code.gson:gson:2.8.2'
+    implementation 'com.google.code.gson:gson:2.8.5'
     implementation group: 'org.apache.commons', name: 'commons-text', version: "$project.apacheCommonsTextVersion"
     implementation "com.android.support:support-annotations:$project.libSupportVersion"
 }
