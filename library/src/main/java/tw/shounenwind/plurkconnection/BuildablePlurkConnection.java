@@ -41,18 +41,15 @@ public class BuildablePlurkConnection extends PlurkConnection {
         private String target;
         private Param[] params;
         private BasePlurkCallback callback;
-        private int retryTimes;
-        private RetryCheck retryCheck;
 
         public Builder(Context mContext, BuildablePlurkConnection healingPlurkConnection) {
             contextWeakReference = new WeakReference<>(mContext);
             mHealingPlurkConnection = healingPlurkConnection;
             params = new Param[]{};
-            retryTimes = 1;
         }
 
         public Builder setRetryTimes(int retryTimes) {
-            this.retryTimes = retryTimes;
+            retryExecutor.setTotalRetryTimes(retryTimes);
             return this;
         }
 
@@ -76,70 +73,79 @@ public class BuildablePlurkConnection extends PlurkConnection {
             return this;
         }
 
-        public Builder setRetryCheck(RetryCheck retryCheck) {
-            this.retryCheck = retryCheck;
-            return this;
-        }
-
         public void call() {
+            retryExecutor.setTasks(retryExecutor.new Tasks() {
+                @Override
+                public void mainTask() throws Exception {
+                    if (callback == null) {
+                        callback = new ApiNullCallback() {
+                            @Override
+                            public void onSuccess(ApiResponseNull parsedResponse) throws Exception {
 
-            retryExecutor.run(contextWeakReference.get(), retryTimes, 1000, new NewThreadRetryExecutor.Tasks() {
-                        @Override
-                        public void mainTask() throws Exception {
-                            if (callback == null) {
-                                callback = new ApiNullCallback() {
-                                    @Override
-                                    public void onSuccess(ApiResponseNull parsedResponse) throws Exception {
-
-                                    }
-                                };
                             }
-                            callback.runResult(mHealingPlurkConnection.startConnect(target, params));
-                        }
+                        };
+                    }
+                    callback.runResult(mHealingPlurkConnection.startConnect(target, params));
+                }
 
-                        @Override
-                        public void onRetry(int retryTimes, int totalTimes) {
-                            if (callback != null)
-                                callback.onRetry(retryTimes, totalTimes);
-                        }
+                @Override
+                public void onRetry(Exception e, int retryTimes, int totalTimes) {
+                    if (callback != null)
+                        callback.onRetry(e, retryTimes, totalTimes, new ErrorAction(this));
+                }
 
-                        @Override
-                        public void onError(Exception e) {
-                            if (callback != null)
-                                callback.onError(e);
-                        }
-                    }, retryCheck
-            );
+                @Override
+                public void onError(Exception e) {
+                    if (callback != null)
+                        callback.onError(e);
+                }
+            });
+            retryExecutor.run(contextWeakReference.get());
 
         }
 
         public void upload(final File imageFile, final String fileName) {
+            retryExecutor.setTasks(retryExecutor.new Tasks() {
 
-            retryExecutor.run(contextWeakReference.get(), retryTimes, 1000, new NewThreadRetryExecutor.Tasks() {
+                public void mainTask() throws Exception {
+                    if (!(callback instanceof ApiStringCallback)) {
+                        throw new Exception("Callback needs to instanceof ApiStringCallback");
+                    }
+                    callback.runResult(mHealingPlurkConnection.startConnect(target, imageFile, fileName));
+                }
 
-                        @Override
-                        public void mainTask() throws Exception {
-                            if (!(callback instanceof ApiStringCallback)) {
-                                throw new Exception("Callback needs to instanceof ApiStringCallback");
-                            }
-                            callback.runResult(mHealingPlurkConnection.startConnect(target, imageFile, fileName));
-                        }
+                public void onRetry(Exception e, int retryTimes, int totalTimes) {
+                    if (callback != null) {
+                        callback.onRetry(e, retryTimes, totalTimes, new ErrorAction(this));
+                    }
+                }
 
-                        @Override
-                        public void onRetry(int retryTimes, int totalTimes) {
-                            if (callback != null) {
-                                callback.onRetry(retryTimes, totalTimes);
-                            }
-                        }
+                public void onError(Exception e) {
+                    if (callback != null)
+                        callback.onError(e);
+                }
+            });
 
-                        @Override
-                        public void onError(Exception e) {
-                            if (callback != null)
-                                callback.onError(e);
-                        }
-                    }, retryCheck
-            );
+            retryExecutor.run(contextWeakReference.get());
 
         }
     }
+
+    public class ErrorAction {
+
+        private NewThreadRetryExecutor.Tasks tasks;
+
+        public ErrorAction(NewThreadRetryExecutor.Tasks tasks) {
+            this.tasks = tasks;
+        }
+
+        public final void retry() {
+            tasks.retry();
+        }
+
+        public final void error(Exception e) {
+            tasks.error(e);
+        }
+    }
+
 }

@@ -3,6 +3,8 @@ package tw.shounenwind.plurkconnection.callbacks;
 import java.net.HttpURLConnection;
 
 import okhttp3.Response;
+import tw.shounenwind.plurkconnection.BuildablePlurkConnection;
+import tw.shounenwind.plurkconnection.NewThreadRetryExecutor;
 import tw.shounenwind.plurkconnection.PlurkConnectionException;
 import tw.shounenwind.plurkconnection.responses.ApiResponseString;
 import tw.shounenwind.plurkconnection.responses.IResponse;
@@ -11,11 +13,13 @@ public abstract class BasePlurkCallback<T extends IResponse> {
 
     protected abstract void onSuccess(T parsedResponse) throws Exception;
 
-    public void onRetry(long retryTimes, long totalTimes) {
+    private NewThreadRetryExecutor.Tasks tasks;
+
+    public void onRetry(Throwable e, long retryTimes, long totalTimes, BuildablePlurkConnection.ErrorAction errorAction) {
 
     }
 
-    public void onError(Throwable e) {
+    public void onError(Exception e) {
 
     }
 
