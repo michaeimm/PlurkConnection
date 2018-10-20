@@ -1,4 +1,5 @@
 apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
 apply plugin: 'com.github.dcendents.android-maven'
 
 group='com.github.michaeimm'
@@ -29,4 +30,8 @@ dependencies {
     implementation group: 'org.apache.commons', name: 'commons-text', version: "$project.apacheCommonsTextVersion"
     implementation "com.android.support:support-annotations:$project.libSupportVersion"
     implementation "com.android.support:exifinterface:$project.libSupportVersion"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+}
+repositories {
+    mavenCentral()
 }
