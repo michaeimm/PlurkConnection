@@ -1,13 +1,12 @@
 package tw.shounenwind.plurkconnection.callbacks
 
-import java.net.HttpURLConnection
-
 import okhttp3.Response
 import tw.shounenwind.plurkconnection.BuildablePlurkConnection
 import tw.shounenwind.plurkconnection.PlurkConnectionException
 import tw.shounenwind.plurkconnection.Tasks
 import tw.shounenwind.plurkconnection.responses.ApiResponseString
 import tw.shounenwind.plurkconnection.responses.IResponse
+import java.net.HttpURLConnection
 
 abstract class BasePlurkCallback<T : IResponse<*>> {
 
@@ -16,11 +15,11 @@ abstract class BasePlurkCallback<T : IResponse<*>> {
     @Throws(Exception::class)
     protected abstract fun onSuccess(parsedResponse: T)
 
-    fun onRetry(e: Throwable, retryTimes: Long, totalTimes: Long, errorAction: BuildablePlurkConnection.ErrorAction) {
+    open fun onRetry(e: Throwable, retryTimes: Long, totalTimes: Long, errorAction: BuildablePlurkConnection.ErrorAction) {
 
     }
 
-    fun onError(e: Throwable) {
+    open fun onError(e: Throwable) {
 
     }
 
