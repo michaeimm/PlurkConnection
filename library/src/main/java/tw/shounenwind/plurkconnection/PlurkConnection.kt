@@ -21,7 +21,9 @@ import java.util.concurrent.TimeUnit
 open class PlurkConnection(private val app_key: String, private val app_secret: String) {
     private var normalOkHttpClient: OkHttpClient? = null
     private var imageUploadOkHttpClient: OkHttpClient? = null
-    private var token: String? = null
+    var token: String? = null
+        private set(value) {field = value}
+        get() = consumer.token
     var tokenSecret: String? = null
         private set(value) {field = value}
         get() = consumer.tokenSecret
@@ -179,10 +181,6 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
     @Throws(OAuthCommunicationException::class, OAuthExpectationFailedException::class, OAuthNotAuthorizedException::class, OAuthMessageSignerException::class)
     fun retrieveAccessToken(verifier: String) {
         provider.retrieveAccessToken(consumer, verifier)
-    }
-
-    fun getToken(): String {
-        return consumer.token
     }
 
     companion object {
