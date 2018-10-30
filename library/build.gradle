@@ -27,9 +27,9 @@ dependencies {
     implementation 'com.squareup.okhttp3:okhttp:3.11.0'
     implementation 'com.google.guava:guava:26.0-android'
     implementation 'com.google.code.gson:gson:2.8.5'
-    implementation group: 'org.apache.commons', name: 'commons-text', version: "$project.apacheCommonsTextVersion"
-    implementation "com.android.support:support-annotations:$project.libSupportVersion"
-    implementation "com.android.support:exifinterface:$project.libSupportVersion"
+    implementation group: 'org.apache.commons', name: 'commons-text', version: "$apacheCommonsTextVersion"
+    implementation "com.android.support:support-annotations:$libSupportVersion"
+    implementation "com.android.support:exifinterface:$libSupportVersion"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }
 repositories {

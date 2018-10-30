@@ -3,27 +3,14 @@ package tw.shounenwind.plurkconnection
 import android.net.TrafficStats
 import android.os.Build
 import android.util.Log
-
+import okhttp3.*
 import java.io.IOException
 import java.net.InetAddress
 import java.net.Socket
 import java.net.SocketException
 import java.security.KeyStore
-import java.util.ArrayList
-import java.util.Arrays
-
-import javax.net.ssl.SSLContext
-import javax.net.ssl.SSLSocket
-import javax.net.ssl.SSLSocketFactory
-import javax.net.ssl.TrustManager
-import javax.net.ssl.TrustManagerFactory
-import javax.net.ssl.X509TrustManager
-
-import okhttp3.ConnectionSpec
-import okhttp3.Interceptor
-import okhttp3.OkHttpClient
-import okhttp3.Response
-import okhttp3.TlsVersion
+import java.util.*
+import javax.net.ssl.*
 
 /**
  * Enables TLS v1.2 when creating SSLSockets.
@@ -106,11 +93,11 @@ class Tls12SocketFactory private constructor(private val delegate: SSLSocketFact
 
     companion object {
 
-        private val TAG = "SocketFactory"
+        private const val TAG = "SocketFactory"
         private val TLS_V12_ONLY = arrayOf("TLSv1.2")
 
         fun enableTls12OnPreLollipop(client: OkHttpClient.Builder): OkHttpClient.Builder {
-            if (Build.VERSION.SDK_INT >= 16 && Build.VERSION.SDK_INT < 22) {
+            if (Build.VERSION.SDK_INT in 16..21) {
                 try {
                     val sc = SSLContext.getInstance("TLSv1.2")
                     val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())

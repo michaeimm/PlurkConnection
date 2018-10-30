@@ -13,8 +13,4 @@ class PlurkConnectionException : Exception {
     constructor(response: IResponse<*>, e: Exception) : super(response.statusCode.toString() + ": " + response.toString(), e) {
         this.apiResponseString = response
     }
-
-    override fun printStackTrace() {
-        super.printStackTrace()
-    }
 }
