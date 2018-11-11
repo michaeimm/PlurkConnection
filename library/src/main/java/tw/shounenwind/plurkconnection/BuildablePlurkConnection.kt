@@ -1,10 +1,9 @@
 package tw.shounenwind.plurkconnection
 
 import android.content.Context
-import tw.shounenwind.plurkconnection.callbacks.ApiNullCallback
-import tw.shounenwind.plurkconnection.callbacks.ApiStringCallback
-import tw.shounenwind.plurkconnection.callbacks.BasePlurkCallback
+import tw.shounenwind.plurkconnection.callbacks.*
 import tw.shounenwind.plurkconnection.responses.ApiResponseNull
+import tw.shounenwind.plurkconnection.responses.IResponse
 import java.io.File
 import java.lang.ref.WeakReference
 import java.util.concurrent.ExecutorService
@@ -32,6 +31,8 @@ open class BuildablePlurkConnection : PlurkConnection {
         private var target: String? = null
         private var params: Array<Param>? = null
         private var callback: BasePlurkCallback<*>? = null
+        private var onRetryAction: OnRetryAction? = null
+        private var onErrorAction: OnErrorAction? = null
 
         init {
             params = arrayOf()
@@ -66,6 +67,47 @@ open class BuildablePlurkConnection : PlurkConnection {
             return this
         }
 
+        inline fun <T : IResponse<*>> setCallback(crossinline body: (parsedResponse: T) -> Unit) : Builder{
+            return setCallback(object : BasePlurkCallback<T>(){
+                override fun onSuccess(parsedResponse: T) {
+                    body(parsedResponse)
+                }
+
+            })
+        }
+
+        fun setOnRetryAction(action: OnRetryAction): Builder{
+            onRetryAction = action
+            return this
+        }
+
+        inline fun setOnRetryAction(crossinline body: (
+                e: Throwable,
+                retryTimes: Long,
+                totalTimes: Long,
+                errorAction: BuildablePlurkConnection.ErrorAction
+        ) -> Unit) : Builder{
+            return setOnRetryAction(object: OnRetryAction{
+                override fun onRetry(e: Throwable, retryTimes: Long, totalTimes: Long, errorAction: ErrorAction) {
+                    body(e, retryTimes, totalTimes, errorAction)
+                }
+
+            })
+        }
+
+        fun setOnErrorAction(action: OnErrorAction): Builder{
+            onErrorAction = action
+            return this
+        }
+
+        inline fun setOnErrorAction(crossinline body: (e: Throwable) -> Unit): Builder{
+            return setOnErrorAction(object : OnErrorAction{
+                override fun onError(e: Throwable) {
+                    body(e)
+                }
+            })
+        }
+
         fun call() {
             val mContext = contextWeakReference.get()?:return
             retryExecutor.setTasks(object : Tasks(mContext) {
@@ -83,13 +125,11 @@ open class BuildablePlurkConnection : PlurkConnection {
                 }
 
                 override fun onRetry(e: Throwable, retryTimes: Int, totalTimes: Int) {
-                    if (callback != null)
-                        callback!!.onRetry(e, retryTimes.toLong(), totalTimes.toLong(), ErrorAction(this))
+                    onRetryAction?.onRetry(e, retryTimes.toLong(), totalTimes.toLong(), ErrorAction(this))
                 }
 
                 override fun onError(e: Throwable) {
-                    if (callback != null)
-                        callback!!.onError(e)
+                    onErrorAction?.onError(e)
                 }
             })
             retryExecutor.run(contextWeakReference.get())
@@ -109,14 +149,11 @@ open class BuildablePlurkConnection : PlurkConnection {
                 }
 
                 fun onRetry(e: Exception, retryTimes: Int, totalTimes: Int) {
-                    if (callback != null) {
-                        callback!!.onRetry(e, retryTimes.toLong(), totalTimes.toLong(), ErrorAction(this))
-                    }
+                    onRetryAction?.onRetry(e, retryTimes.toLong(), totalTimes.toLong(), ErrorAction(this))
                 }
 
                 fun onError(e: Exception) {
-                    if (callback != null)
-                        callback!!.onError(e)
+                    onErrorAction?.onError(e)
                 }
             })
 

@@ -1,7 +1,6 @@
 package tw.shounenwind.plurkconnection.callbacks
 
 import okhttp3.Response
-import tw.shounenwind.plurkconnection.BuildablePlurkConnection
 import tw.shounenwind.plurkconnection.PlurkConnectionException
 import tw.shounenwind.plurkconnection.Tasks
 import tw.shounenwind.plurkconnection.responses.ApiResponseString
@@ -14,14 +13,6 @@ abstract class BasePlurkCallback<T : IResponse<*>> {
 
     @Throws(Exception::class)
     protected abstract fun onSuccess(parsedResponse: T)
-
-    open fun onRetry(e: Throwable, retryTimes: Long, totalTimes: Long, errorAction: BuildablePlurkConnection.ErrorAction) {
-
-    }
-
-    open fun onError(e: Throwable) {
-
-    }
 
     @Throws(Exception::class)
     open fun runResult(response: Response) {
