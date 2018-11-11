@@ -1,21 +1,14 @@
 package tw.shounenwind.plurkconnection
 
 import android.content.Context
-
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 
 class NewThreadRetryExecutor {
-
-    private var threadPool: ExecutorService? = null
     private var totalRetryTimes = 1
     private var currentRetryTimes = 0
     private var tasks: Tasks? = null
-
-    fun setThreadPool(threadPool: ExecutorService) {
-        this.threadPool = threadPool
-    }
 
     fun setTasks(tasks: Tasks) {
         this.tasks = tasks
@@ -27,23 +20,20 @@ class NewThreadRetryExecutor {
     }
 
     fun run(mContext: Context?) {
-        if (threadPool == null) {
-            threadPool = Executors.newCachedThreadPool()
-        }
 
-        threadPool!!.execute {
+        GlobalScope.launch {
             if (mContext == null)
-                return@execute
+                return@launch
             val wrContext = WeakReference(mContext)
             try {
                 tasks!!.mainTask()
             } catch (e: Exception) {
                 currentRetryTimes++
                 if (currentRetryTimes >= totalRetryTimes) {
-                    wrContext.get() ?: return@execute
+                    wrContext.get() ?: return@launch
                     tasks!!.onError(e)
                 } else {
-                    wrContext.get() ?: return@execute
+                    wrContext.get() ?: return@launch
                     tasks!!.onRetry(e, currentRetryTimes, totalRetryTimes)
                 }
             }

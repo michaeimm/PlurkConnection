@@ -6,19 +6,12 @@ import tw.shounenwind.plurkconnection.responses.ApiResponseNull
 import tw.shounenwind.plurkconnection.responses.IResponse
 import java.io.File
 import java.lang.ref.WeakReference
-import java.util.concurrent.ExecutorService
 
 open class BuildablePlurkConnection : PlurkConnection {
-    private var threadPool: ExecutorService? = null
-
 
     constructor(APP_KEY: String, APP_SECRET: String, token: String, token_secret: String) : super(APP_KEY, APP_SECRET, token, token_secret)
 
     constructor(APP_KEY: String, APP_SECRET: String) : super(APP_KEY, APP_SECRET)
-
-    fun setThreadPool(threadPool: ExecutorService) {
-        this.threadPool = threadPool
-    }
 
     fun builder(mContext: Context): Builder {
         return Builder(mContext, this)
@@ -37,9 +30,6 @@ open class BuildablePlurkConnection : PlurkConnection {
         init {
             params = arrayOf()
             retryExecutor = NewThreadRetryExecutor()
-            if (threadPool != null) {
-                retryExecutor.setThreadPool(threadPool!!)
-            }
         }
 
         fun setRetryTimes(retryTimes: Int): Builder {
