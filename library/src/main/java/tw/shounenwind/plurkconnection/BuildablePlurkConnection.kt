@@ -3,7 +3,6 @@ package tw.shounenwind.plurkconnection
 import android.content.Context
 import tw.shounenwind.plurkconnection.callbacks.*
 import tw.shounenwind.plurkconnection.responses.ApiResponseNull
-import tw.shounenwind.plurkconnection.responses.IResponse
 import java.io.File
 import java.lang.ref.WeakReference
 
@@ -55,15 +54,6 @@ open class BuildablePlurkConnection : PlurkConnection {
         fun setCallback(callback: BasePlurkCallback<*>): Builder {
             this.callback = callback
             return this
-        }
-
-        inline fun <T : IResponse<*>> setCallback(crossinline body: (parsedResponse: T) -> Unit) : Builder{
-            return setCallback(object : BasePlurkCallback<T>(){
-                override fun onSuccess(parsedResponse: T) {
-                    body(parsedResponse)
-                }
-
-            })
         }
 
         fun setOnRetryAction(action: OnRetryAction): Builder{
