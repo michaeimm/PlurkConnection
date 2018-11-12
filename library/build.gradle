@@ -28,8 +28,7 @@ dependencies {
     implementation 'com.google.guava:guava:26.0-android'
     implementation 'com.google.code.gson:gson:2.8.5'
     implementation group: 'org.apache.commons', name: 'commons-text', version: "$apacheCommonsTextVersion"
-    implementation "com.android.support:support-annotations:$libSupportVersion"
-    implementation "com.android.support:exifinterface:$libSupportVersion"
+    implementation 'androidx.annotation:annotation:1.0.0'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.0.0'
 }

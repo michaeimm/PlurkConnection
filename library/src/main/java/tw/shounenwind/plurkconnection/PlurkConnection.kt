@@ -1,6 +1,6 @@
 package tw.shounenwind.plurkconnection
 
-import android.support.annotation.WorkerThread
+import androidx.annotation.WorkerThread
 import android.webkit.MimeTypeMap
 import com.google.common.io.Files
 import oauth.signpost.OAuth
