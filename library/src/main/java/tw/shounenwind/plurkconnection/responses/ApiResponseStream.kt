@@ -1,7 +1,5 @@
 package tw.shounenwind.plurkconnection.responses
 
-import com.google.common.io.CharStreams
-
 import java.io.Reader
 
 class ApiResponseStream : IResponse<Reader?> {
@@ -23,7 +21,14 @@ class ApiResponseStream : IResponse<Reader?> {
 
     override fun toString(): String {
         return try {
-            statusCode.toString() + ", " + if (content == null) "" else CharStreams.toString(content)
+            statusCode.toString() + ", " +
+                    if (content == null)
+                        ""
+                    else {
+                        val text = content.readText()
+                        content.close()
+                        text
+                    }
         } catch (e1: Exception) {
             statusCode.toString() + ", " + e1.toString()
         }

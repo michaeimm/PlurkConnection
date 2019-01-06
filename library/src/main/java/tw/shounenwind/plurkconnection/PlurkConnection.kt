@@ -1,8 +1,7 @@
 package tw.shounenwind.plurkconnection
 
-import androidx.annotation.WorkerThread
 import android.webkit.MimeTypeMap
-import com.google.common.io.Files
+import androidx.annotation.WorkerThread
 import oauth.signpost.OAuth
 import oauth.signpost.basic.DefaultOAuthProvider
 import oauth.signpost.exception.OAuthCommunicationException
@@ -144,7 +143,7 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
         val requestBodyBuilder = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
 
-        val format = Files.getFileExtension(imageFile.name).toLowerCase(Locale.ENGLISH)
+        val format = getFileExtension(imageFile.name).toLowerCase(Locale.ENGLISH)
         val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format)
                 ?: throw Exception("MimeType is null. File name: " + imageFile.name)
         val parsedMimeType = MediaType.parse(
@@ -181,6 +180,11 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
     @Throws(OAuthCommunicationException::class, OAuthExpectationFailedException::class, OAuthNotAuthorizedException::class, OAuthMessageSignerException::class)
     fun retrieveAccessToken(verifier: String) {
         provider.retrieveAccessToken(consumer, verifier)
+    }
+
+    private fun getFileExtension(fileName: String): String{
+        val dotIndex = fileName.lastIndexOf('.')
+        return if (dotIndex == -1) "" else fileName.substring(dotIndex + 1)
     }
 
     companion object {
