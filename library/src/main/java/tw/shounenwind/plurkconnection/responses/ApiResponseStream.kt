@@ -21,7 +21,7 @@ class ApiResponseStream : IResponse<Reader?> {
 
     override fun toString(): String {
         return try {
-            statusCode.toString() + ", " +
+            "$statusCode, " +
                     if (content == null)
                         ""
                     else {
@@ -30,7 +30,7 @@ class ApiResponseStream : IResponse<Reader?> {
                         text
                     }
         } catch (e1: Exception) {
-            statusCode.toString() + ", " + e1.toString()
+            "$statusCode, $e1"
         }
 
     }

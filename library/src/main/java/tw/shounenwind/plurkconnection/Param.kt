@@ -33,4 +33,8 @@ class Param {
     override fun toString(): String {
         return "$key, $value"
     }
+
+    override fun equals(other: Any?): Boolean {
+        return other is Param && hashCode() == other.hashCode()
+    }
 }

@@ -24,9 +24,9 @@ class ApiResponseJsonElement : IResponse<JsonElement> {
 
     override fun toString(): String {
         return try {
-            statusCode.toString() + ", " + content.toString()
+            "$statusCode, $content"
         } catch (e1: Exception) {
-            statusCode.toString() + ", " + e1.toString()
+            "$statusCode, $e1"
         }
 
     }

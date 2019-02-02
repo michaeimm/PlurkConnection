@@ -18,6 +18,6 @@ class ApiResponseNull : IResponse<String> {
     }
 
     override fun toString(): String {
-        return statusCode.toString() + ", " + content
+        return "$statusCode, $content"
     }
 }
