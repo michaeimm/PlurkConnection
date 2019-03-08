@@ -3,7 +3,7 @@ package tw.shounenwind.plurkconnection.callbacks
 import okhttp3.Response
 import tw.shounenwind.plurkconnection.responses.ApiResponseNull
 
-class ApiNullCallback : BasePlurkCallback<ApiResponseNull>() {
+open class ApiNullCallback : BasePlurkCallback<ApiResponseNull>() {
 
     @Throws(Exception::class)
     override fun onSuccess(parsedResponse: ApiResponseNull) {
