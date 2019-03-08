@@ -113,10 +113,11 @@ class Tls12SocketFactory private constructor(private val delegate: SSLSocketFact
                             .tlsVersions(TlsVersion.TLS_1_2)
                             .build()
 
-                    val specs = ArrayList<ConnectionSpec>()
-                    specs.add(cs)
-                    specs.add(ConnectionSpec.COMPATIBLE_TLS)
-                    specs.add(ConnectionSpec.CLEARTEXT)
+                    val specs = ArrayList<ConnectionSpec>().apply {
+                        add(cs)
+                        add(ConnectionSpec.COMPATIBLE_TLS)
+                        add(ConnectionSpec.CLEARTEXT)
+                    }
 
                     client.connectionSpecs(specs)
 

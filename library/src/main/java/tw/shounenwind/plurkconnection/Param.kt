@@ -13,12 +13,12 @@ class Param {
 
     constructor(key: String, value: Long) {
         this.key = key
-        this.value = value.toString() + ""
+        this.value = value.toString()
     }
 
     constructor(key: String, value: Int) {
         this.key = key
-        this.value = value.toString() + ""
+        this.value = value.toString()
     }
 
     constructor(key: String, value: Boolean) {

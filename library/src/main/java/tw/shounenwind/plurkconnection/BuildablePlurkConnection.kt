@@ -2,7 +2,6 @@ package tw.shounenwind.plurkconnection
 
 import android.content.Context
 import tw.shounenwind.plurkconnection.callbacks.*
-import tw.shounenwind.plurkconnection.responses.ApiResponseNull
 import java.io.File
 import java.lang.ref.WeakReference
 
@@ -94,12 +93,7 @@ open class BuildablePlurkConnection : PlurkConnection {
                 @Throws(Exception::class)
                 override fun mainTask() {
                     if (callback == null) {
-                        callback = object : ApiNullCallback() {
-                            @Throws(Exception::class)
-                            public override fun onSuccess(parsedResponse: ApiResponseNull) {
-
-                            }
-                        }
+                        callback = ApiNullCallback()
                     }
                     callback!!.runResult(mHealingPlurkConnection.startConnect(target!!, params!!))
                 }

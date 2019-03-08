@@ -25,16 +25,18 @@ class NewThreadRetryExecutor {
             if (mContext == null)
                 return@launch
             val wrContext = WeakReference(mContext)
-            try {
-                tasks!!.mainTask()
-            } catch (e: Exception) {
-                currentRetryTimes++
-                if (currentRetryTimes >= totalRetryTimes) {
-                    wrContext.get() ?: return@launch
-                    tasks!!.onError(e)
-                } else {
-                    wrContext.get() ?: return@launch
-                    tasks!!.onRetry(e, currentRetryTimes, totalRetryTimes)
+            tasks!!.also {
+                try {
+                    it.mainTask()
+                } catch (e: Exception) {
+                    currentRetryTimes++
+                    if (currentRetryTimes >= totalRetryTimes) {
+                        wrContext.get() ?: return@launch
+                        it.onError(e)
+                    } else {
+                        wrContext.get() ?: return@launch
+                        it.onRetry(e, currentRetryTimes, totalRetryTimes)
+                    }
                 }
             }
         }

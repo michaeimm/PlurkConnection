@@ -21,16 +21,15 @@ class ApiResponseStream : IResponse<Reader?> {
 
     override fun toString(): String {
         return try {
-            "$statusCode, " +
-                    if (content == null)
-                        ""
-                    else {
-                        val text = content.readText()
-                        content.close()
-                        text
-                    }
+            val stringBuilder = StringBuilder("$statusCode, ")
+            if (content != null) {
+                stringBuilder.append(content.readText())
+            }
+            stringBuilder.toString()
         } catch (e1: Exception) {
             "$statusCode, $e1"
+        } finally {
+            content?.close()
         }
 
     }

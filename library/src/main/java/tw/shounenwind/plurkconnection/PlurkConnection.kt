@@ -107,14 +107,13 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
         val httpParameters = HttpParameters()
         val consumer = newConsumer
 
-        for (param in params) {
+        params.forEach { param ->
             httpParameters.put(OAuth.percentEncode(param.key), OAuth.percentEncode(param.value))
             formBodyBuilder.add(param.key, param.value)
         }
 
         val requestBody = formBodyBuilder.build()
         consumer.setAdditionalParameters(httpParameters)
-
 
         val request = Request.Builder()
                 .cacheControl(
