@@ -15,9 +15,12 @@ abstract class ApiStreamCallback : BasePlurkCallback<ApiResponseStream>() {
         try {
             body = response.body()
             result = ApiResponseStream(response.code(), body!!.charStream())
+            onSuccess(result)
+        } catch (e: Exception) {
+            throw e
         } finally {
             body?.close()
         }
-        onSuccess(result)
+
     }
 }
