@@ -30,34 +30,28 @@ open class BuildablePlurkConnection : PlurkConnection {
             retryExecutor = NewThreadRetryExecutor()
         }
 
-        fun setRetryTimes(retryTimes: Int): Builder {
+        fun setRetryTimes(retryTimes: Int) = apply {
             retryExecutor.setTotalRetryTimes(retryTimes)
-            return this
         }
 
-        fun setTarget(target: String): Builder {
+        fun setTarget(target: String) = apply {
             this.target = target
-            return this
         }
 
-        fun setParams(params: Array<Param>): Builder {
+        fun setParams(params: Array<Param>) = apply {
             this.params = params
-            return this
         }
 
-        fun setParam(param: Param): Builder {
+        fun setParam(param: Param) = apply {
             this.params = arrayOf(param)
-            return this
         }
 
-        fun setCallback(callback: BasePlurkCallback<*>): Builder {
+        fun setCallback(callback: BasePlurkCallback<*>) = apply {
             this.callback = callback
-            return this
         }
 
-        fun setOnRetryAction(action: OnRetryAction): Builder{
+        fun setOnRetryAction(action: OnRetryAction) = apply {
             onRetryAction = action
-            return this
         }
 
         inline fun setOnRetryAction(crossinline body: (
@@ -65,8 +59,8 @@ open class BuildablePlurkConnection : PlurkConnection {
                 retryTimes: Long,
                 totalTimes: Long,
                 errorAction: BuildablePlurkConnection.ErrorAction
-        ) -> Unit) : Builder{
-            return setOnRetryAction(object: OnRetryAction{
+        ) -> Unit) = apply {
+            setOnRetryAction(object: OnRetryAction{
                 override fun onRetry(e: Throwable, retryTimes: Long, totalTimes: Long, errorAction: ErrorAction) {
                     body(e, retryTimes, totalTimes, errorAction)
                 }
@@ -74,13 +68,12 @@ open class BuildablePlurkConnection : PlurkConnection {
             })
         }
 
-        fun setOnErrorAction(action: OnErrorAction): Builder{
+        fun setOnErrorAction(action: OnErrorAction) = apply {
             onErrorAction = action
-            return this
         }
 
-        inline fun setOnErrorAction(crossinline body: (e: Throwable) -> Unit): Builder{
-            return setOnErrorAction(object : OnErrorAction{
+        inline fun setOnErrorAction(crossinline body: (e: Throwable) -> Unit) = apply {
+            setOnErrorAction(object : OnErrorAction{
                 override fun onError(e: Throwable) {
                     body(e)
                 }
