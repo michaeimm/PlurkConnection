@@ -58,7 +58,7 @@ open class BuildablePlurkConnection : PlurkConnection {
                 e: Throwable,
                 retryTimes: Long,
                 totalTimes: Long,
-                errorAction: BuildablePlurkConnection.ErrorAction
+                errorAction: ErrorAction
         ) -> Unit) = apply {
             setOnRetryAction(object: OnRetryAction{
                 override fun onRetry(e: Throwable, retryTimes: Long, totalTimes: Long, errorAction: ErrorAction) {

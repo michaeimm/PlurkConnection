@@ -16,6 +16,8 @@ abstract class ApiJsonElementCallback : BasePlurkCallback<ApiResponseJsonElement
             body = response.body()
             val jsonElement = JsonParser().parse(body!!.charStream())
             result = ApiResponseJsonElement(response.code(), jsonElement)
+        } catch (e: Exception) {
+            throw e
         } finally {
             body?.close()
         }

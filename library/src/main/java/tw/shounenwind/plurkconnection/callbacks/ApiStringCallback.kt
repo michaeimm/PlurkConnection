@@ -15,6 +15,8 @@ abstract class ApiStringCallback : BasePlurkCallback<ApiResponseString>() {
         try {
             body = response.body()
             result = ApiResponseString(response.code(), body!!.string())
+        } catch (e: Exception) {
+            throw e
         } finally {
             body?.close()
         }
