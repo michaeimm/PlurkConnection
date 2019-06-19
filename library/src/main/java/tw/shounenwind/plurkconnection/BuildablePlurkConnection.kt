@@ -1,6 +1,12 @@
 package tw.shounenwind.plurkconnection
 
+import android.app.Activity
+import android.app.Application
 import android.content.Context
+import android.os.Bundle
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import tw.shounenwind.plurkconnection.callbacks.*
 import java.io.File
 import java.lang.ref.WeakReference
@@ -15,8 +21,7 @@ open class BuildablePlurkConnection : PlurkConnection {
         return Builder(mContext, this)
     }
 
-    inner class Builder(mContext: Context, private val mHealingPlurkConnection: BuildablePlurkConnection) {
-
+    inner class Builder(mContext: Context, private val mHealingPlurkConnection: BuildablePlurkConnection) : Application.ActivityLifecycleCallbacks {
         private val retryExecutor: NewThreadRetryExecutor
         private val contextWeakReference: WeakReference<Context> = WeakReference(mContext)
         private var target: String? = null
@@ -24,6 +29,7 @@ open class BuildablePlurkConnection : PlurkConnection {
         private var callback: BasePlurkCallback<*>? = null
         private var onRetryAction: OnRetryAction? = null
         private var onErrorAction: OnErrorAction? = null
+        private var mainScope: CoroutineScope? = MainScope()
 
         init {
             params = arrayOf()
@@ -99,7 +105,9 @@ open class BuildablePlurkConnection : PlurkConnection {
                     onErrorAction?.onError(e)
                 }
             })
-            retryExecutor.run(contextWeakReference.get())
+            synchronized(Builder::class.java) {
+                retryExecutor.run(mainScope)
+            }
 
         }
 
@@ -124,7 +132,42 @@ open class BuildablePlurkConnection : PlurkConnection {
                 }
             })
 
-            retryExecutor.run(contextWeakReference.get())
+            synchronized(Builder::class.java) {
+                retryExecutor.run(mainScope)
+            }
+
+        }
+
+        override fun onActivityPaused(p0: Activity) {
+
+        }
+
+        override fun onActivityStarted(p0: Activity) {
+
+        }
+
+        override fun onActivityDestroyed(p0: Activity) {
+            if (contextWeakReference.get() == p0) {
+                synchronized(Builder::class.java) {
+                    mainScope?.cancel()
+                    mainScope = null
+                }
+            }
+        }
+
+        override fun onActivitySaveInstanceState(p0: Activity, p1: Bundle) {
+
+        }
+
+        override fun onActivityStopped(p0: Activity) {
+
+        }
+
+        override fun onActivityCreated(p0: Activity, p1: Bundle?) {
+
+        }
+
+        override fun onActivityResumed(p0: Activity) {
 
         }
     }

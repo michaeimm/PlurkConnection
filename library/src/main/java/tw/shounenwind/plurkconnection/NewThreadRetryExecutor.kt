@@ -1,9 +1,8 @@
 package tw.shounenwind.plurkconnection
 
-import android.content.Context
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.lang.ref.WeakReference
 
 class NewThreadRetryExecutor {
     private var totalRetryTimes = 1
@@ -19,23 +18,19 @@ class NewThreadRetryExecutor {
         this.totalRetryTimes = totalRetryTimes
     }
 
-    fun run(mContext: Context?) {
-
-        GlobalScope.launch {
-            if (mContext == null)
-                return@launch
-            val wrContext = WeakReference(mContext)
+    fun run(mainScope: CoroutineScope?) {
+        mainScope?.launch {
             tasks!!.also {
                 try {
                     it.mainTask()
                 } catch (e: Exception) {
                     currentRetryTimes++
-                    if (currentRetryTimes >= totalRetryTimes) {
-                        wrContext.get() ?: return@launch
-                        it.onError(e)
-                    } else {
-                        wrContext.get() ?: return@launch
-                        it.onRetry(e, currentRetryTimes, totalRetryTimes)
+                    if (this@launch.isActive) {
+                        if (currentRetryTimes >= totalRetryTimes) {
+                            it.onError(e)
+                        } else {
+                            it.onRetry(e, currentRetryTimes, totalRetryTimes)
+                        }
                     }
                 }
             }
