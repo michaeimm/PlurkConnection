@@ -87,8 +87,7 @@ open class BuildablePlurkConnection : PlurkConnection {
         }
 
         fun call() {
-            val mContext = contextWeakReference.get()?:return
-            retryExecutor.setTasks(object : Tasks(mContext) {
+            retryExecutor.setTasks(object : Tasks(mainScope) {
                 @Throws(Exception::class)
                 override fun mainTask() {
                     if (callback == null) {
@@ -112,8 +111,7 @@ open class BuildablePlurkConnection : PlurkConnection {
         }
 
         fun upload(imageFile: File, fileName: String) {
-            val mContext = contextWeakReference.get()?:return
-            retryExecutor.setTasks(object : Tasks(mContext) {
+            retryExecutor.setTasks(object : Tasks(mainScope) {
 
                 @Throws(Exception::class)
                 override fun mainTask() {

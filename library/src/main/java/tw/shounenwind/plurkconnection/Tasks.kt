@@ -1,11 +1,9 @@
 package tw.shounenwind.plurkconnection
 
-import android.content.Context
-import java.lang.ref.WeakReference
+import kotlinx.coroutines.CoroutineScope
 
-abstract class Tasks(mContext: Context) {
+abstract class Tasks(private val mainScope: CoroutineScope?) {
 
-    private val wrContext = WeakReference(mContext)
     private var tasks: NewThreadRetryExecutor? = null
 
     @Throws(Exception::class)
@@ -30,7 +28,7 @@ abstract class Tasks(mContext: Context) {
             e.printStackTrace()
         }
 
-        tasks!!.run(wrContext.get())
+        tasks!!.run(mainScope)
     }
 
     fun error(e: Throwable) {
