@@ -34,6 +34,7 @@ open class BuildablePlurkConnection : PlurkConnection {
         init {
             params = arrayOf()
             retryExecutor = NewThreadRetryExecutor()
+            (mContext.applicationContext as Application).registerActivityLifecycleCallbacks(this)
         }
 
         fun setRetryTimes(retryTimes: Int) = apply {
@@ -94,6 +95,8 @@ open class BuildablePlurkConnection : PlurkConnection {
                         callback = ApiNullCallback()
                     }
                     callback!!.runResult(mHealingPlurkConnection.startConnect(target!!, params!!))
+                    (contextWeakReference.get()?.applicationContext as Application)
+                            .unregisterActivityLifecycleCallbacks(this@Builder)
                 }
 
                 override fun onRetry(e: Throwable, retryTimes: Int, totalTimes: Int) {
@@ -102,6 +105,8 @@ open class BuildablePlurkConnection : PlurkConnection {
 
                 override fun onError(e: Throwable) {
                     onErrorAction?.onError(e)
+                    (contextWeakReference.get()?.applicationContext as Application)
+                            .unregisterActivityLifecycleCallbacks(this@Builder)
                 }
             })
             synchronized(Builder::class.java) {
@@ -119,6 +124,8 @@ open class BuildablePlurkConnection : PlurkConnection {
                         throw Exception("Callback needs to instanceof ApiStringCallback")
                     }
                     callback!!.runResult(mHealingPlurkConnection.startConnect(target!!, imageFile, fileName))
+                    (contextWeakReference.get()?.applicationContext as Application)
+                            .unregisterActivityLifecycleCallbacks(this@Builder)
                 }
 
                 fun onRetry(e: Exception, retryTimes: Int, totalTimes: Int) {
@@ -127,6 +134,8 @@ open class BuildablePlurkConnection : PlurkConnection {
 
                 fun onError(e: Exception) {
                     onErrorAction?.onError(e)
+                    (contextWeakReference.get()?.applicationContext as Application)
+                            .unregisterActivityLifecycleCallbacks(this@Builder)
                 }
             })
 
@@ -150,6 +159,8 @@ open class BuildablePlurkConnection : PlurkConnection {
                     mainScope?.cancel()
                     mainScope = null
                 }
+                (contextWeakReference.get()?.applicationContext as Application)
+                        .unregisterActivityLifecycleCallbacks(this)
             }
         }
 
