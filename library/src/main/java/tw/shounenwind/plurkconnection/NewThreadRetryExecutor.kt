@@ -1,6 +1,7 @@
 package tw.shounenwind.plurkconnection
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -19,7 +20,7 @@ class NewThreadRetryExecutor {
     }
 
     fun run(mainScope: CoroutineScope?) {
-        mainScope?.launch {
+        mainScope?.launch(Dispatchers.IO) {
             tasks!!.also {
                 try {
                     it.mainTask()
