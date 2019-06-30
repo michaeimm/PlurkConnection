@@ -10,6 +10,8 @@ import oauth.signpost.exception.OAuthMessageSignerException
 import oauth.signpost.exception.OAuthNotAuthorizedException
 import oauth.signpost.http.HttpParameters
 import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.asRequestBody
 import se.akerfeldt.okhttp.signpost.OkHttpOAuthConsumer
 import se.akerfeldt.okhttp.signpost.SigningInterceptor
 import java.io.File
@@ -21,10 +23,14 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
     private var normalOkHttpClient: OkHttpClient? = null
     private var imageUploadOkHttpClient: OkHttpClient? = null
     var token: String? = null
-        private set(value) {field = value}
+        private set(value) {
+            field = value
+        }
         get() = consumer.token
     var tokenSecret: String? = null
-        private set(value) {field = value}
+        private set(value) {
+            field = value
+        }
         get() = consumer.tokenSecret
 
     private val provider: DefaultOAuthProvider = DefaultOAuthProvider(
@@ -42,7 +48,7 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
         }
 
     private val protocols: List<Protocol>
-        get() = Arrays.asList(Protocol.HTTP_2, Protocol.HTTP_1_1)
+        get() = listOf(Protocol.HTTP_2, Protocol.HTTP_1_1)
 
     constructor(APP_KEY: String, APP_SECRET: String, token: String, token_secret: String) : this(APP_KEY, APP_SECRET) {
         this.token = token
@@ -145,15 +151,10 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
         val format = getFileExtension(imageFile.name).toLowerCase(Locale.ENGLISH)
         val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format)
                 ?: throw Exception("MimeType is null. File name: " + imageFile.name)
-        val parsedMimeType = MediaType.parse(
-                mimeType
-        )
+        val parsedMimeType = mimeType.toMediaType()
         requestBodyBuilder.addFormDataPart(imageName,
                 imageName,
-                RequestBody.create(
-                        parsedMimeType,
-                        imageFile
-                )
+                imageFile.asRequestBody(parsedMimeType)
         )
 
         val request = Request.Builder()
@@ -181,7 +182,7 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
         provider.retrieveAccessToken(consumer, verifier)
     }
 
-    private fun getFileExtension(fileName: String): String{
+    private fun getFileExtension(fileName: String): String {
         val dotIndex = fileName.lastIndexOf('.')
         return if (dotIndex == -1) "" else fileName.substring(dotIndex + 1)
     }
