@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import okhttp3.Response
 import okhttp3.ResponseBody
 import tw.shounenwind.plurkconnection.callbacks.OnErrorAction
 import tw.shounenwind.plurkconnection.callbacks.OnRetryAction
@@ -141,12 +142,7 @@ open class ApiCaller : PlurkConnection {
             retryExecutor {
                 var body: ResponseBody? = null
                 try {
-                    val apiResult = startConnect(target!!, params ?: arrayOf())
-                    if (!apiResult.isSuccessful) {
-                        throw Exception(
-                                apiResult.code.toString() + ": " + apiResult.body?.string()
-                        )
-                    }
+                    val apiResult = callApiResult()
                     body = apiResult.body
                     gson.fromJson<T>(body!!.charStream(), type)
                 } catch (e: Exception) {
@@ -161,13 +157,7 @@ open class ApiCaller : PlurkConnection {
             retryExecutor {
                 var body: ResponseBody? = null
                 try {
-                    val apiResult = startConnect(target!!, params ?: arrayOf())
-                    if (!apiResult.isSuccessful) {
-                        throw Exception("Request failed with code: " +
-                                apiResult.code.toString() +
-                                "\n" +
-                                apiResult.body?.string())
-                    }
+                    val apiResult = callApiResult()
                     body = apiResult.body
                     body?.string()
                 } catch (e: Exception) {
@@ -182,12 +172,7 @@ open class ApiCaller : PlurkConnection {
             retryExecutor {
                 var body: ResponseBody? = null
                 try {
-                    val apiResult = startConnect(target!!, params ?: arrayOf())
-                    if (!apiResult.isSuccessful) {
-                        throw Exception(
-                                apiResult.code.toString() + ": " + apiResult.body?.string()
-                        )
-                    }
+                    val apiResult = callApiResult()
                     body = apiResult.body
                     JsonParser().parse(body!!.charStream())
                 } catch (e: Exception) {
@@ -202,12 +187,7 @@ open class ApiCaller : PlurkConnection {
             retryExecutor {
                 var body: ResponseBody? = null
                 try {
-                    val apiResult = startConnect(target!!, params ?: arrayOf())
-                    if (!apiResult.isSuccessful) {
-                        throw Exception(
-                                apiResult.code.toString() + ": " + apiResult.body?.string()
-                        )
-                    }
+                    val apiResult = callApiResult()
                     body = apiResult.body
                     null
                 } catch (e: Exception) {
@@ -231,12 +211,7 @@ open class ApiCaller : PlurkConnection {
             retryExecutor {
                 var body: ResponseBody? = null
                 try {
-                    val apiResult = startConnect(target!!, params ?: arrayOf())
-                    if (!apiResult.isSuccessful) {
-                        throw Exception(
-                                apiResult.code.toString() + ": " + apiResult.body?.string()
-                        )
-                    }
+                    val apiResult = callApiResult()
                     body = apiResult.body!!
                     result = true
                     null
@@ -255,7 +230,8 @@ open class ApiCaller : PlurkConnection {
                 try {
                     val apiResult = startConnect(target!!, imageFile, fileName)
                     if (!apiResult.isSuccessful) {
-                        throw Exception(
+                        throw PlurkConnectionException(
+                                target!!,
                                 apiResult.code.toString() + ": " + apiResult.body?.string()
                         )
                     }
@@ -294,6 +270,17 @@ open class ApiCaller : PlurkConnection {
                 }
             }
             result
+        }
+
+        private fun callApiResult(): Response {
+            val apiResult = startConnect(target!!, params ?: arrayOf())
+            if (!apiResult.isSuccessful) {
+                throw PlurkConnectionException(
+                        target!!,
+                        apiResult.code.toString() + ": " + apiResult.body?.string()
+                )
+            }
+            return apiResult
         }
     }
 
