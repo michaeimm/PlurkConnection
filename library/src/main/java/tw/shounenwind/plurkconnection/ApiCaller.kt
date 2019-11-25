@@ -66,7 +66,7 @@ open class ApiCaller : PlurkConnection {
                 totalTimes: Int
         ) -> Unit) = apply {
             setOnRetryAction(object : OnRetryAction {
-                override fun onRetry(e: Throwable, retryTimes: Int, totalTimes: Int) {
+                override suspend fun onRetry(e: Throwable, retryTimes: Int, totalTimes: Int) {
                     body(e, retryTimes, totalTimes)
                 }
             })
@@ -80,7 +80,7 @@ open class ApiCaller : PlurkConnection {
                         totalTimes: Int) -> Unit
         ) = apply {
             setOnRetryAction(dispatcher, object : OnRetryAction {
-                override fun onRetry(e: Throwable, retryTimes: Int, totalTimes: Int) {
+                override suspend fun onRetry(e: Throwable, retryTimes: Int, totalTimes: Int) {
                     body(e, retryTimes, totalTimes)
                 }
             })
@@ -109,7 +109,7 @@ open class ApiCaller : PlurkConnection {
 
         inline fun setOnErrorAction(crossinline body: (e: Throwable) -> Unit) = apply {
             setOnErrorAction(object : OnErrorAction {
-                override fun onError(e: Throwable) {
+                override suspend fun onError(e: Throwable) {
                     body(e)
                 }
             })
@@ -120,7 +120,7 @@ open class ApiCaller : PlurkConnection {
                 crossinline body: (e: Throwable) -> Unit
         ) = apply {
             setOnErrorAction(dispatcher, object : OnErrorAction {
-                override fun onError(e: Throwable) {
+                override suspend fun onError(e: Throwable) {
                     body(e)
                 }
             })
