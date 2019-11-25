@@ -174,7 +174,7 @@ open class ApiCaller : PlurkConnection {
                 try {
                     val apiResult = callApiResult()
                     body = apiResult.body
-                    JsonParser().parse(body!!.charStream())
+                    JsonParser.parseReader(body!!.charStream())
                 } catch (e: Exception) {
                     throw e
                 } finally {
@@ -236,7 +236,7 @@ open class ApiCaller : PlurkConnection {
                         )
                     }
                     body = apiResult.body
-                    JsonParser().parse(body!!.charStream())
+                    JsonParser.parseReader(body!!.charStream())
                 } catch (e: Exception) {
                     throw e
                 } finally {
