@@ -1,5 +1,5 @@
 package tw.shounenwind.plurkconnection.callbacks
 
 interface OnErrorAction {
-    fun onError(e: Throwable)
+    suspend fun onError(e: Throwable)
 }
