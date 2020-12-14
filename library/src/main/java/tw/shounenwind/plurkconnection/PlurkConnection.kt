@@ -2,6 +2,7 @@ package tw.shounenwind.plurkconnection
 
 import android.webkit.MimeTypeMap
 import androidx.annotation.WorkerThread
+import oauth.signpost.AbstractOAuthConsumer
 import oauth.signpost.OAuth
 import oauth.signpost.basic.DefaultOAuthProvider
 import oauth.signpost.exception.OAuthCommunicationException
@@ -22,30 +23,19 @@ import java.util.concurrent.TimeUnit
 open class PlurkConnection(private val app_key: String, private val app_secret: String) {
     private var normalOkHttpClient: OkHttpClient? = null
     private var imageUploadOkHttpClient: OkHttpClient? = null
+    private val consumer: AbstractOAuthConsumer = OkHttpOAuthConsumer(app_key, app_secret)
     var token: String? = null
-        private set(value) {
-            field = value
-        }
+        private set
         get() = consumer.token
     var tokenSecret: String? = null
-        private set(value) {
-            field = value
-        }
+        private set
         get() = consumer.tokenSecret
 
     private val provider: DefaultOAuthProvider = DefaultOAuthProvider(
             "https://www.plurk.com/OAuth/request_token",
             "https://www.plurk.com/OAuth/access_token",
-            "https://www.plurk.com/m/authorize"
+            "https://www.plurk.com/OAuth/authorize"
     )
-    private val consumer: OkHttpOAuthConsumer = OkHttpOAuthConsumer(app_key, app_secret)
-
-    private val newConsumer: OkHttpOAuthConsumer
-        get() {
-            val consumer = OkHttpOAuthConsumer(app_key, app_secret)
-            consumer.setTokenWithSecret(token, this.tokenSecret)
-            return consumer
-        }
 
     private val protocols: List<Protocol>
         get() = listOf(Protocol.HTTP_2, Protocol.HTTP_1_1)
@@ -54,6 +44,12 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
         this.token = token
         this.tokenSecret = token_secret
         consumer.setTokenWithSecret(token, token_secret)
+    }
+
+    private fun getNewConsumer(): AbstractOAuthConsumer {
+        val consumer: AbstractOAuthConsumer = OkHttpOAuthConsumer(app_key, app_secret)
+        consumer.setTokenWithSecret(token, this.tokenSecret)
+        return consumer
     }
 
     fun setNormalOkHttpClient(normalOkHttpClient: OkHttpClient) {
@@ -88,7 +84,7 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
                                 .connectTimeout(8, TimeUnit.SECONDS)
                                 .readTimeout(20, TimeUnit.SECONDS)
                                 .writeTimeout(20, TimeUnit.SECONDS)
-                                .addInterceptor(SigningInterceptor(consumer))
+                                .addInterceptor(SigningInterceptor(consumer as OkHttpOAuthConsumer))
                 ).build()
             }
             if (imageUploadOkHttpClient == null) {
@@ -99,7 +95,7 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
                                 .connectTimeout(10, TimeUnit.SECONDS)
                                 .readTimeout(60, TimeUnit.SECONDS)
                                 .writeTimeout(180, TimeUnit.SECONDS)
-                                .addInterceptor(SigningInterceptor(consumer))
+                                .addInterceptor(SigningInterceptor(consumer as OkHttpOAuthConsumer))
                 ).build()
             }
         }
@@ -111,9 +107,10 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
         checkLinkExist()
         val formBodyBuilder = FormBody.Builder()
         val httpParameters = HttpParameters()
-        val consumer = newConsumer
+        val consumer = getNewConsumer()
 
         params.forEach { param ->
+            @Suppress("ReplacePutWithAssignment")
             httpParameters.put(OAuth.percentEncode(param.key), OAuth.percentEncode(param.value))
             formBodyBuilder.add(param.key, param.value)
         }
@@ -133,7 +130,6 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
         return normalOkHttpClient!!.newCall(
                 consumer.sign(request).unwrap() as Request
         ).execute()
-
     }
 
     @WorkerThread
@@ -143,7 +139,7 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
         if (!imageFile.exists())
             throw IllegalArgumentException("The image file is not exist.")
 
-        val consumer = newConsumer
+        val consumer = getNewConsumer()
 
         val requestBodyBuilder = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)

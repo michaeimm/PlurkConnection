@@ -5,12 +5,12 @@ apply plugin: 'com.github.dcendents.android-maven'
 group='com.github.michaeimm'
 
 android {
-    compileSdkVersion 29
-    buildToolsVersion '29.0.2'
+    compileSdkVersion 30
+    buildToolsVersion '30.0.3'
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 29
+        targetSdkVersion 30
         versionCode 2
         versionName "1.0"
     }
@@ -22,15 +22,14 @@ android {
 
 dependencies {
     api fileTree(include: ['*.jar'], dir: 'libs')
-    api 'oauth.signpost:signpost-core:1.2.1.2'
+    api 'oauth.signpost:signpost-core:2.1.1'
     api 'se.akerfeldt:okhttp-signpost:1.1.0'
-    implementation 'com.squareup.okhttp3:okhttp:4.2.2'
-    implementation 'com.google.code.gson:gson:2.8.6'
-    implementation group: 'org.apache.commons', name: 'commons-text', version: "$apacheCommonsTextVersion"
+    implementation 'com.squareup.okhttp3:okhttp:4.9.0'
+    implementation "org.apache.commons:commons-text:$apacheCommonsTextVersion"
     implementation 'androidx.annotation:annotation:1.1.0'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.2'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.2'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.2'
 }
 repositories {
     mavenCentral()

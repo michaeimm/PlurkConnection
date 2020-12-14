@@ -1,18 +1,16 @@
 package tw.shounenwind.plurkconnection
 
-import com.google.gson.Gson
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import android.net.TrafficStats
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.Response
-import okhttp3.ResponseBody
-import tw.shounenwind.plurkconnection.callbacks.OnErrorAction
-import tw.shounenwind.plurkconnection.callbacks.OnRetryAction
-import tw.shounenwind.plurkconnection.callbacks.RetryChecker
+import org.json.JSONObject
+import tw.shounenwind.plurkconnection.interfaces.IResponseAdapter
+import tw.shounenwind.plurkconnection.interfaces.OnErrorAction
+import tw.shounenwind.plurkconnection.interfaces.OnRetryAction
+import tw.shounenwind.plurkconnection.interfaces.RetryChecker
 import java.io.File
 
 open class ApiCaller : PlurkConnection {
@@ -33,9 +31,9 @@ open class ApiCaller : PlurkConnection {
         private var params: Array<Param>? = null
         private var retryTimes = 1
         private var onRetryAction: OnRetryAction? = null
-        private var retryDispatcher: CoroutineDispatcher = Dispatchers.Default
+        private var retryDispatcher: CoroutineDispatcher = Dispatchers.Unconfined
         private var onErrorAction: OnErrorAction? = null
-        private var errorDispatcher: CoroutineDispatcher = Dispatchers.Default
+        private var errorDispatcher: CoroutineDispatcher = Dispatchers.Unconfined
         private var retryChecker: RetryChecker? = null
         private var target: String? = null
 
@@ -60,42 +58,8 @@ open class ApiCaller : PlurkConnection {
             onRetryAction = action
         }
 
-        inline fun setOnRetryAction(crossinline body: (
-                e: Throwable,
-                retryTimes: Int,
-                totalTimes: Int
-        ) -> Unit) = apply {
-            setOnRetryAction(object : OnRetryAction {
-                override suspend fun onRetry(e: Throwable, retryTimes: Int, totalTimes: Int) {
-                    body(e, retryTimes, totalTimes)
-                }
-            })
-        }
-
-        inline fun setOnRetryAction(
-                dispatcher: CoroutineDispatcher,
-                crossinline body: (
-                        e: Throwable,
-                        retryTimes: Int,
-                        totalTimes: Int) -> Unit
-        ) = apply {
-            setOnRetryAction(dispatcher, object : OnRetryAction {
-                override suspend fun onRetry(e: Throwable, retryTimes: Int, totalTimes: Int) {
-                    body(e, retryTimes, totalTimes)
-                }
-            })
-        }
-
         fun setRetryChecker(action: RetryChecker) {
             retryChecker = action
-        }
-
-        inline fun setRetryChecker(crossinline body: (e: Throwable) -> Boolean) = apply {
-            setRetryChecker(object : RetryChecker {
-                override fun onCheck(e: Throwable): Boolean {
-                    return body(e)
-                }
-            })
         }
 
         fun setOnErrorAction(action: OnErrorAction) = apply {
@@ -107,140 +71,29 @@ open class ApiCaller : PlurkConnection {
             onErrorAction = action
         }
 
-        inline fun setOnErrorAction(crossinline body: (e: Throwable) -> Unit) = apply {
-            setOnErrorAction(object : OnErrorAction {
-                override suspend fun onError(e: Throwable) {
-                    body(e)
-                }
-            })
-        }
-
-        inline fun setOnErrorAction(
-                dispatcher: CoroutineDispatcher,
-                crossinline body: (e: Throwable) -> Unit
-        ) = apply {
-            setOnErrorAction(dispatcher, object : OnErrorAction {
-                override suspend fun onError(e: Throwable) {
-                    body(e)
-                }
-            })
-        }
-
         fun setTarget(target: String) {
             this.target = target
         }
 
-        fun setRetryDispatcher(dispatcher: CoroutineDispatcher) {
-            retryDispatcher = dispatcher
-        }
-
-        fun setErrorDispatcher(dispatcher: CoroutineDispatcher) {
-            errorDispatcher = dispatcher
-        }
-
-        suspend fun <T> asGsonObject(gson: Gson, type: Class<T>) = withContext(Dispatchers.IO) {
+        suspend fun <T> getResult(adapter: IResponseAdapter<T>) = withContext(Dispatchers.IO) {
             retryExecutor {
-                var body: ResponseBody? = null
-                try {
-                    val apiResult = callApiResult()
-                    body = apiResult.body
-                    gson.fromJson<T>(body!!.charStream(), type)
-                } catch (e: Exception) {
-                    throw e
-                } finally {
-                    body?.close()
+                getApiResponse().use { apiResult ->
+                    adapter.convert(apiResult)
                 }
             }
-        }
-
-        suspend fun asString() = withContext(Dispatchers.IO) {
-            retryExecutor {
-                var body: ResponseBody? = null
-                try {
-                    val apiResult = callApiResult()
-                    body = apiResult.body
-                    body?.string()
-                } catch (e: Exception) {
-                    throw e
-                } finally {
-                    body?.close()
-                }
-            }
-        }
-
-        suspend fun asJsonElement() = withContext(Dispatchers.IO) {
-            retryExecutor {
-                var body: ResponseBody? = null
-                try {
-                    val apiResult = callApiResult()
-                    body = apiResult.body
-                    JsonParser.parseReader(body!!.charStream())
-                } catch (e: Exception) {
-                    throw e
-                } finally {
-                    body?.close()
-                }
-            }
-        }
-
-        suspend fun asNull() = withContext(Dispatchers.IO) {
-            retryExecutor {
-                var body: ResponseBody? = null
-                try {
-                    val apiResult = callApiResult()
-                    body = apiResult.body
-                    null
-                } catch (e: Exception) {
-                    throw e
-                } finally {
-                    body?.close()
-                }
-            }
-        }
-
-        suspend inline fun asJsonArray(): JsonArray? {
-            return asJsonElement()?.asJsonArray
-        }
-
-        suspend inline fun asJsonObject(): JsonObject? {
-            return asJsonElement()?.asJsonObject
-        }
-
-        suspend fun asSuccess() = withContext(Dispatchers.IO) {
-            var result = false
-            retryExecutor {
-                var body: ResponseBody? = null
-                try {
-                    val apiResult = callApiResult()
-                    body = apiResult.body!!
-                    result = true
-                    null
-                } catch (e: Exception) {
-                    throw e
-                } finally {
-                    body?.close()
-                }
-            }
-            result
         }
 
         suspend fun upload(imageFile: File, fileName: String) = withContext(Dispatchers.IO) {
             retryExecutor {
-                var body: ResponseBody? = null
-                try {
-                    val apiResult = startConnect(target!!, imageFile, fileName)
+                startConnect(target!!, imageFile, fileName).use { apiResult ->
                     if (!apiResult.isSuccessful) {
                         throw PlurkConnectionException(
                                 target!!,
                                 apiResult.code.toString() + ": " + apiResult.body?.string()
                         )
                     }
-                    body = apiResult.body
-                    JsonParser.parseReader(body!!.charStream())
-                } catch (e: Exception) {
-                    throw e
-                } finally {
-                    body?.close()
+                    val body = apiResult.body
+                    JSONObject(body!!.string())
                 }
             }
         }
@@ -263,7 +116,7 @@ open class ApiCaller : PlurkConnection {
                         currentRunningTime++
                     } else {
                         withContext(errorDispatcher) {
-                            onErrorAction?.onError(e)
+                            onErrorAction?.onError(PlurkConnectionException(target ?: "", e))
                         }
                         break
                     }
@@ -272,11 +125,23 @@ open class ApiCaller : PlurkConnection {
             result
         }
 
-        private fun callApiResult(): Response {
+        private fun getApiResponse(): Response {
+            TrafficStats.setThreadStatsTag(arrayOf(target!!, params ?: "").contentHashCode())
             val apiResult = startConnect(target!!, params ?: arrayOf())
+            TrafficStats.clearThreadStatsTag()
             if (!apiResult.isSuccessful) {
+                val errors = buildString {
+                    params?.forEach {
+                        if (length == 0) {
+                            append('?')
+                        } else {
+                            append('&')
+                        }
+                        append("${it.key}=${it.value}")
+                    }
+                }
                 throw PlurkConnectionException(
-                        target!!,
+                        errors,
                         apiResult.code.toString() + ": " + apiResult.body?.string()
                 )
             }

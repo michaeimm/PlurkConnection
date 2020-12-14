@@ -1,7 +1,5 @@
 package tw.shounenwind.plurkconnection
 
-import java.util.*
-
 class Param {
     val key: String
     val value: String
@@ -27,7 +25,7 @@ class Param {
     }
 
     override fun hashCode(): Int {
-        return Arrays.hashCode(arrayOf(key, value))
+        return arrayOf(key, value).contentHashCode()
     }
 
     override fun toString(): String {
