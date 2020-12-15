@@ -8,6 +8,10 @@ android {
     compileSdkVersion 30
     buildToolsVersion '30.0.3'
 
+    compileOptions {
+        kotlinOptions.freeCompilerArgs += ['-module-name', "plurkconnection"]
+    }
+
     defaultConfig {
         minSdkVersion 14
         targetSdkVersion 30
