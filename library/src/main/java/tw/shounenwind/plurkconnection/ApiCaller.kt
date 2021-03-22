@@ -3,14 +3,10 @@ package tw.shounenwind.plurkconnection
 import android.net.TrafficStats
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.Response
 import org.json.JSONObject
 import tw.shounenwind.plurkconnection.interfaces.IResponseAdapter
-import tw.shounenwind.plurkconnection.interfaces.OnErrorAction
-import tw.shounenwind.plurkconnection.interfaces.OnRetryAction
-import tw.shounenwind.plurkconnection.interfaces.RetryChecker
 import java.io.File
 
 open class ApiCaller : PlurkConnection {
@@ -29,12 +25,7 @@ open class ApiCaller : PlurkConnection {
 
     inner class Builder {
         private var params: Array<Param>? = null
-        private var retryTimes = 1
-        private var onRetryAction: OnRetryAction? = null
         private var retryDispatcher: CoroutineDispatcher = Dispatchers.Unconfined
-        private var onErrorAction: OnErrorAction? = null
-        private var errorDispatcher: CoroutineDispatcher = Dispatchers.Unconfined
-        private var retryChecker: RetryChecker? = null
         private var target: String? = null
 
         fun setParams(params: Array<Param>) {
@@ -43,32 +34,6 @@ open class ApiCaller : PlurkConnection {
 
         fun setParam(param: Param) {
             this.params = arrayOf(param)
-        }
-
-        fun setRetryTimes(times: Int) {
-            retryTimes = times
-        }
-
-        fun setOnRetryAction(action: OnRetryAction) {
-            onRetryAction = action
-        }
-
-        fun setOnRetryAction(dispatcher: CoroutineDispatcher, action: OnRetryAction) {
-            retryDispatcher = dispatcher
-            onRetryAction = action
-        }
-
-        fun setRetryChecker(action: RetryChecker) {
-            retryChecker = action
-        }
-
-        fun setOnErrorAction(action: OnErrorAction) = apply {
-            onErrorAction = action
-        }
-
-        fun setOnErrorAction(dispatcher: CoroutineDispatcher, action: OnErrorAction) = apply {
-            errorDispatcher = dispatcher
-            onErrorAction = action
         }
 
         fun setTarget(target: String) {
@@ -99,30 +64,11 @@ open class ApiCaller : PlurkConnection {
         }
 
         private suspend fun <T> retryExecutor(block: () -> T): T? = withContext(Dispatchers.Default) {
-            var currentRunningTime = 1
-            var result: T? = null
-            while (retryTimes >= currentRunningTime) {
-                try {
-                    result = block()
-                    break
-                } catch (e: Exception) {
-                    if (retryTimes >= currentRunningTime + 1) {
-                        if (retryChecker?.onCheck(e) != false) {
-                            withContext(retryDispatcher) {
-                                onRetryAction?.onRetry(e, currentRunningTime, retryTimes)
-                            }
-                        }
-                        delay(250)
-                        currentRunningTime++
-                    } else {
-                        withContext(errorDispatcher) {
-                            onErrorAction?.onError(PlurkConnectionException(target ?: "", e))
-                        }
-                        break
-                    }
-                }
+            try {
+                block()
+            } catch (e: Exception) {
+                throw PlurkConnectionException(target!!, e)
             }
-            result
         }
 
         private fun getApiResponse(): Response {
