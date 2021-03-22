@@ -39,7 +39,7 @@ open class ApiCaller : PlurkConnection {
         }
 
         suspend fun <T> getResult(adapter: IResponseAdapter<T>) = withContext(Dispatchers.IO) {
-            retryExecutor {
+            this@Builder.run {
                 getApiResponse().use { apiResult ->
                     adapter.convert(apiResult)
                 }
@@ -47,7 +47,7 @@ open class ApiCaller : PlurkConnection {
         }
 
         suspend fun upload(imageFile: File, fileName: String) = withContext(Dispatchers.IO) {
-            retryExecutor {
+            this@Builder.run {
                 startConnect(target!!, imageFile, fileName).use { apiResult ->
                     if (!apiResult.isSuccessful) {
                         throw PlurkConnectionException(
@@ -62,7 +62,7 @@ open class ApiCaller : PlurkConnection {
         }
 
         @Throws(PlurkConnectionException::class)
-        private suspend fun <T> retryExecutor(block: () -> T): T? = withContext(Dispatchers.Default) {
+        private suspend fun <T> run(block: () -> T): T? = withContext(Dispatchers.Default) {
             try {
                 block()
             } catch (e: Exception) {
