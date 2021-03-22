@@ -61,6 +61,7 @@ open class ApiCaller : PlurkConnection {
             }
         }
 
+        @Throws(PlurkConnectionException::class)
         private suspend fun <T> retryExecutor(block: () -> T): T? = withContext(Dispatchers.Default) {
             try {
                 block()
