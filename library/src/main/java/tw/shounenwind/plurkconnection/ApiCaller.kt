@@ -1,7 +1,6 @@
 package tw.shounenwind.plurkconnection
 
 import android.net.TrafficStats
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Response
@@ -25,7 +24,6 @@ open class ApiCaller : PlurkConnection {
 
     inner class Builder {
         private var params: Array<Param>? = null
-        private var retryDispatcher: CoroutineDispatcher = Dispatchers.Unconfined
         private var target: String? = null
 
         fun setParams(params: Array<Param>) {
