@@ -1,12 +1,12 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'com.github.dcendents.android-maven'
 
 group='com.github.michaeimm'
 
 android {
-    compileSdkVersion 30
-    buildToolsVersion '30.0.3'
+    namespace 'tw.shounenwind.plurkconnection'
+    compileSdkVersion 33
+    buildToolsVersion '33.0.2'
 
     compileOptions {
         kotlinOptions.freeCompilerArgs += ['-module-name', "plurkconnection"]
@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 30
+        targetSdkVersion 33
         versionCode 2
         versionName "1.0"
     }
@@ -28,12 +28,12 @@ dependencies {
     api fileTree(include: ['*.jar'], dir: 'libs')
     api 'oauth.signpost:signpost-core:2.1.1'
     api 'se.akerfeldt:okhttp-signpost:1.1.0'
-    implementation 'com.squareup.okhttp3:okhttp:4.9.1'
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
     implementation "org.apache.commons:commons-text:$apacheCommonsTextVersion"
-    implementation 'androidx.annotation:annotation:1.1.0'
+    implementation 'androidx.annotation:annotation:1.6.0'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.3'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
 }
 repositories {
     mavenCentral()
