@@ -144,9 +144,9 @@ open class PlurkConnection(private val app_key: String, private val app_secret: 
         val requestBodyBuilder = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
 
-        val format = getFileExtension(imageFile.name).toLowerCase(Locale.ENGLISH)
+        val format = getFileExtension(imageFile.name).lowercase(Locale.ENGLISH)
         val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(format)
-                ?: throw Exception("MimeType is null. File name: " + imageFile.name)
+            ?: throw Exception("MimeType is null. File name: " + imageFile.name)
         val parsedMimeType = mimeType.toMediaType()
         requestBodyBuilder.addFormDataPart(imageName,
                 imageName,
