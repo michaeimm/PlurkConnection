@@ -66,6 +66,9 @@ open class ApiCaller : PlurkConnection {
             try {
                 block()
             } catch (e: Exception) {
+                if (e is PlurkConnectionException) {
+                    throw e
+                }
                 throw PlurkConnectionException(target!!, e)
             }
         }
